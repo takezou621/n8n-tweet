@@ -13,7 +13,7 @@
     },
     {
       "name": "OpenAI Blog",
-      "url": "https://blog.openai.com/rss/",
+      "url": "https://openai.com/news/rss.xml",
       "category": "industry", 
       "enabled": true,
       "description": "OpenAI official blog posts and research updates",
@@ -23,11 +23,11 @@
       "priority": "high"
     },
     {
-      "name": "Google AI Blog",
-      "url": "https://ai.googleblog.com/feeds/posts/default",
+      "name": "Google Research Blog",
+      "url": "https://research.google/blog/rss/",
       "category": "industry",
       "enabled": true,
-      "description": "Google AI research and product announcements",
+      "description": "Google Research latest developments and papers",
       "updateInterval": "0 */6 * * *", 
       "timeout": 30000,
       "retryAttempts": 2,
@@ -35,7 +35,7 @@
     },
     {
       "name": "DeepMind Blog",
-      "url": "https://deepmind.com/blog/feed/basic/",
+      "url": "https://deepmind.google/blog/rss.xml",
       "category": "research",
       "enabled": true,
       "description": "DeepMind research breakthroughs and insights",
