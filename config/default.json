@@ -1,0 +1,83 @@
+{
+  "environment": "development",
+  "version": "1.0.0",
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "outputDir": "logs",
+    "maxFiles": 10,
+    "maxSize": "10m"
+  },
+  "apis": {
+    "twitter": {
+      "apiVersion": "v2",
+      "baseUrl": "https://api.twitter.com/2",
+      "timeout": 30000,
+      "rateLimit": {
+        "tweets": {
+          "requests": 300,
+          "windowMs": 10800000,
+          "retryAfter": 900000
+        },
+        "media": {
+          "requests": 300,
+          "windowMs": 10800000
+        }
+      },
+      "retry": {
+        "maxAttempts": 3,
+        "backoffFactor": 2,
+        "initialDelay": 1000
+      }
+    },
+    "rss": {
+      "timeout": 60000,
+      "maxConcurrent": 5,
+      "retryAttempts": 2,
+      "cacheTime": 3600000
+    }
+  },
+  "content": {
+    "filtering": {
+      "scoreThreshold": 0.7,
+      "maxDuplicates": 0,
+      "minQualityScore": 0.5
+    },
+    "generation": {
+      "maxLength": 280,
+      "includeUrl": true,
+      "hashtagLimit": 3,
+      "emojiEnabled": true
+    }
+  },
+  "scheduling": {
+    "rssCheck": "*/15 * * * *",
+    "tweetPosting": "0 */2 * * *",
+    "cleanup": "0 2 * * *"
+  },
+  "storage": {
+    "tweetHistory": {
+      "maxEntries": 10000,
+      "retentionDays": 90
+    },
+    "rssCache": {
+      "maxEntries": 50000,
+      "retentionHours": 24
+    }
+  },
+  "monitoring": {
+    "healthCheck": {
+      "interval": 300000,
+      "timeout": 10000
+    },
+    "metrics": {
+      "collection": true,
+      "retention": "7d"
+    },
+    "alerts": {
+      "enabled": true,
+      "errorThreshold": 5,
+      "responseTimeThreshold": 30000
+    }
+  }
+}

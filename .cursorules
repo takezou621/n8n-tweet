@@ -1,0 +1,235 @@
+# Cursor Rules for n8n-tweet Project
+
+You are an expert JavaScript developer working on an n8n workflow automation project for AI content collection and Twitter posting. Follow these rules strictly:
+
+## 🎯 Project Context
+- **Project**: AI information collection & distribution system using n8n workflows
+- **Language**: JavaScript ES6+
+- **Framework**: n8n workflow automation
+- **Testing**: Jest (TDD approach)
+- **APIs**: X(Twitter) API v2, RSS/XML parsing
+- **Infrastructure**: Docker, GitHub Actions
+
+## 🧪 TDD Development Rules
+
+### Test-First Approach
+1. **ALWAYS write tests before implementation** (Red-Green-Refactor cycle)
+2. **Write failing tests first**, then implement minimal code to pass
+3. **Refactor only after tests pass**
+4. **Maintain 85%+ test coverage** for all modules
+5. **Use descriptive test names**: `describe("TwitterClient")` → `it("should post tweet with rate limit handling")`
+
+### Test Structure
+```javascript
+// Example test structure
+describe('FeatureName', () => {
+  beforeEach(() => {
+    // Setup for each test
+  });
+
+  describe('when specific condition', () => {
+    it('should have expected behavior', async () => {
+      // Arrange
+      const input = 'test data';
+      
+      // Act
+      const result = await functionUnderTest(input);
+      
+      // Assert
+      expect(result).toEqual(expectedOutput);
+    });
+  });
+});
+```
+
+## 📁 File Organization Rules
+
+### Directory Structure
+- `src/utils/` - Utility functions (logger, error-handler, rate-limiter)
+- `src/filters/` - Content filtering logic
+- `src/generators/` - Tweet generation
+- `src/integrations/` - External API clients
+- `src/monitoring/` - Health checks and metrics
+- `tests/unit/` - Unit tests (match src/ structure)
+- `tests/integration/` - Integration tests
+- `config/` - Configuration files (JSON)
+- `workflows/` - n8n workflow definitions
+
+### Naming Conventions
+- **Files**: kebab-case (`tweet-generator.js`)
+- **Classes**: PascalCase (`TwitterClient`)
+- **Functions**: camelCase (`generateTweet`)
+- **Constants**: SCREAMING_SNAKE_CASE (`MAX_TWEET_LENGTH`)
+- **Test files**: `.test.js` suffix (`twitter-client.test.js`)
+
+## 🔧 Code Quality Rules
+
+### JavaScript Best Practices
+1. **Use ES6+ features**: async/await, destructuring, arrow functions
+2. **Prefer const over let**, never use var
+3. **Use template literals** for string interpolation
+4. **Implement proper error handling** with try-catch blocks
+5. **Use JSDoc comments** for all public functions
+
+### Example Code Structure
+```javascript
+/**
+ * Generates optimized tweet from article content
+ * @param {Object} article - Article object with title, description, url
+ * @param {string} category - Content category for hashtag selection
+ * @returns {Promise<string>} Generated tweet text (≤280 chars)
+ */
+async function generateTweet(article, category) {
+  try {
+    // Implementation here
+  } catch (error) {
+    logger.error('Tweet generation failed', { article, category, error });
+    throw new Error(`Tweet generation failed: ${error.message}`);
+  }
+}
+```
+
+### Error Handling Patterns
+1. **Always catch async errors**
+2. **Log errors with context**
+3. **Use custom error classes** for different error types
+4. **Provide meaningful error messages**
+5. **Include error recovery mechanisms**
+
+## 🐦 Twitter API Integration Rules
+
+### Rate Limiting
+- **Implement rate limiting** for all API calls
+- **Use exponential backoff** for retries
+- **Track API usage** and respect monthly limits
+- **Cache responses** when appropriate
+
+### Tweet Content Rules
+- **280 character limit** enforcement
+- **Automatic hashtag addition** based on category
+- **URL shortening** consideration
+- **Emoji usage** for engagement optimization
+
+## 🔍 n8n Workflow Rules
+
+### Workflow Design
+1. **Create modular workflows** with clear node separation
+2. **Use proper error handling nodes**
+3. **Implement webhook endpoints** for external triggers
+4. **Add logging nodes** for monitoring
+5. **Use environment variables** for sensitive data
+
+### Node Configuration
+- **Set appropriate timeouts** for HTTP requests
+- **Configure retry policies** for failed operations
+- **Use proper authentication** for API calls
+- **Implement data validation** between nodes
+
+## 📊 Monitoring & Logging Rules
+
+### Logging Standards
+```javascript
+// Use structured logging
+logger.info('RSS feed processed', {
+  feedUrl: url,
+  itemsFound: items.length,
+  itemsFiltered: filtered.length,
+  duration: Date.now() - startTime
+});
+```
+
+### Health Checks
+- **Implement health check endpoints**
+- **Monitor API response times**
+- **Track error rates**
+- **Set up alerting** for failures
+
+## 🚀 Deployment & CI/CD Rules
+
+### GitHub Actions
+1. **Run tests on all PRs**
+2. **Check test coverage** (must be ≥85%)
+3. **Run linting** (ESLint)
+4. **Build Docker images** for production
+5. **Deploy to staging** before production
+
+### Docker Configuration
+- **Use multi-stage builds**
+- **Minimize image size**
+- **Set proper environment variables**
+- **Include health checks**
+
+## 📝 Documentation Rules
+
+### Code Documentation
+1. **Write JSDoc for all public functions**
+2. **Include usage examples** in comments
+3. **Document configuration options**
+4. **Maintain API documentation**
+
+### README Updates
+- **Update README** when adding new features
+- **Include setup instructions**
+- **Document environment variables**
+- **Provide troubleshooting guide**
+
+## 🔒 Security Rules
+
+### API Security
+1. **Never commit API keys** or secrets
+2. **Use environment variables** for sensitive data
+3. **Implement request validation**
+4. **Rate limit API endpoints**
+5. **Log security events**
+
+### Data Protection
+- **Sanitize user inputs**
+- **Encrypt sensitive data** at rest
+- **Use HTTPS** for all external communications
+- **Implement proper authentication**
+
+## 🎨 Code Style Rules
+
+### ESLint Configuration
+- Use `eslint:recommended` as base
+- Enable `no-console` (use logger instead)
+- Enforce `max-len: 100` characters
+- Require `camelCase` naming
+- Disallow `unused-vars`
+
+### Formatting
+- **Use Prettier** for code formatting
+- **2 spaces** for indentation
+- **Single quotes** for strings
+- **Trailing commas** in multiline objects
+- **Semicolons** at end of statements
+
+## 📋 Development Workflow
+
+### Feature Development
+1. **Create feature branch** from main
+2. **Write failing tests** first
+3. **Implement minimal code** to pass tests
+4. **Refactor** and optimize
+5. **Update documentation**
+6. **Create pull request**
+
+### Code Review Checklist
+- [ ] Tests written and passing
+- [ ] Code coverage ≥85%
+- [ ] ESLint passes
+- [ ] Documentation updated
+- [ ] Error handling implemented
+- [ ] Security considerations addressed
+
+## 🚨 Common Pitfalls to Avoid
+
+1. **Don't implement without tests**
+2. **Don't ignore rate limits**
+3. **Don't hardcode configuration**
+4. **Don't skip error handling**
+5. **Don't commit sensitive data**
+6. **Don't create monolithic functions**
+7. **Don't forget to update documentation**
+
+Remember: This project follows TDD strictly. Every feature starts with a test, and every change must maintain or improve test coverage. Quality over speed!

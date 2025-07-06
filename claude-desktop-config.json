@@ -1,0 +1,187 @@
+{
+  "project_name": "n8n-tweet",
+  "project_description": "AI情報収集・配信システム - n8nワークフローを使用してRSSフィードからAI関連情報を収集し、自動でTwitterに投稿するシステム",
+  "context": {
+    "development_approach": "TDD (Test-Driven Development)",
+    "tech_stack": {
+      "workflow": "n8n automation platform",
+      "language": "JavaScript ES6+",
+      "testing": "Jest",
+      "api": ["X(Twitter) API v2", "RSS/XML"],
+      "infrastructure": ["Docker", "GitHub Actions"],
+      "quality": ["ESLint", "85%+ test coverage"]
+    },
+    "project_structure": {
+      "src": "Source code directory",
+      "tests": "Test files (unit, integration, performance, security)",
+      "config": "Configuration files (JSON)",
+      "workflows": "n8n workflow definitions",
+      "scripts": "Deployment and maintenance scripts",
+      "docs": "Documentation files"
+    }
+  },
+  "instructions": {
+    "primary_principles": [
+      "Always follow TDD approach: Red → Green → Refactor",
+      "Write tests before implementation",
+      "Maintain 85%+ test coverage",
+      "Use structured error handling and logging",
+      "Implement proper rate limiting for external APIs",
+      "Follow the 8-phase implementation plan from Issues"
+    ],
+    "code_generation": {
+      "always_include": [
+        "Comprehensive error handling with try-catch blocks",
+        "JSDoc documentation for all public functions",
+        "Structured logging with context",
+        "Input validation and sanitization",
+        "Async/await pattern for asynchronous operations"
+      ],
+      "testing_requirements": [
+        "Write corresponding test file for every source file",
+        "Use describe/it pattern with clear test descriptions",
+        "Include setup/teardown with beforeEach/afterEach",
+        "Test both success and error scenarios",
+        "Mock external dependencies appropriately"
+      ],
+      "code_style": [
+        "Use ES6+ features (const/let, arrow functions, destructuring)",
+        "Follow camelCase for functions and variables",
+        "Use PascalCase for classes",
+        "Prefer template literals for string interpolation",
+        "Maximum line length of 100 characters"
+      ]
+    },
+    "specific_guidelines": {
+      "rss_feed_handling": [
+        "Implement robust XML/RSS parsing with error recovery",
+        "Handle malformed feeds gracefully",
+        "Cache feed data to avoid redundant requests",
+        "Implement timeout mechanisms for slow feeds"
+      ],
+      "twitter_integration": [
+        "Respect rate limits (300 tweets per 3-hour window)",
+        "Implement exponential backoff for failed requests",
+        "Validate tweet content (280 character limit)",
+        "Handle authentication errors gracefully",
+        "Log all API interactions for monitoring"
+      ],
+      "content_filtering": [
+        "Use configurable keyword lists for AI content detection",
+        "Implement fuzzy matching for content similarity",
+        "Score content quality based on multiple factors",
+        "Remove or flag duplicate content effectively"
+      ],
+      "n8n_workflows": [
+        "Create modular workflow nodes with single responsibilities",
+        "Use proper error handling nodes for fault tolerance",
+        "Implement webhook triggers for external events",
+        "Add monitoring nodes for operational visibility",
+        "Use environment variables for configuration"
+      ]
+    },
+    "implementation_phases": [
+      {
+        "phase": 1,
+        "issue": "#3",
+        "title": "プロジェクト初期設定",
+        "focus": "Project structure, package.json, Jest/ESLint setup, initial test files"
+      },
+      {
+        "phase": 2,
+        "issue": "#4",
+        "title": "RSS Feed Reader実装",
+        "focus": "Feed parsing, n8n workflow, error handling, unit tests"
+      },
+      {
+        "phase": 3,
+        "issue": "#5",
+        "title": "コンテンツフィルタリング実装",
+        "focus": "AI keyword filtering, duplicate detection, quality scoring"
+      },
+      {
+        "phase": 4,
+        "issue": "#6",
+        "title": "ツイート生成実装",
+        "focus": "Text optimization, hashtag insertion, character limit handling"
+      },
+      {
+        "phase": 5,
+        "issue": "#7",
+        "title": "Twitter投稿実装",
+        "focus": "API integration, rate limiting, posting history, retry logic"
+      },
+      {
+        "phase": 6,
+        "issue": "#8",
+        "title": "監視・ログ実装",
+        "focus": "Structured logging, health checks, metrics collection, alerting"
+      },
+      {
+        "phase": 7,
+        "issue": "#9",
+        "title": "統合テスト実装",
+        "focus": "End-to-end testing, performance testing, security testing"
+      },
+      {
+        "phase": 8,
+        "issue": "#10",
+        "title": "デプロイ自動化実装",
+        "focus": "Docker configuration, deployment scripts, CI/CD pipeline"
+      }
+    ]
+  },
+  "quality_standards": {
+    "test_coverage": "85% minimum",
+    "performance": {
+      "filtering": "1000 items processed within 10 seconds",
+      "api_response": "Twitter API calls complete within 30 seconds",
+      "feed_parsing": "RSS feeds parsed within 60 seconds"
+    },
+    "error_handling": [
+      "All external API calls wrapped in try-catch",
+      "Meaningful error messages with context",
+      "Proper error logging with structured data",
+      "Graceful degradation for non-critical failures"
+    ],
+    "security": [
+      "No hardcoded API credentials",
+      "Environment variables for sensitive data",
+      "Input validation for all user-provided data",
+      "Rate limiting for all external requests"
+    ]
+  },
+  "common_patterns": {
+    "class_template": "```javascript\n/**\n * Class description\n */\nclass ClassName {\n  constructor(config) {\n    this.config = config;\n    this.logger = require('./logger');\n  }\n\n  async methodName(param) {\n    try {\n      // Implementation\n      this.logger.info('Operation completed', { param, result });\n      return result;\n    } catch (error) {\n      this.logger.error('Operation failed', { param, error });\n      throw new Error(`Operation failed: ${error.message}`);\n    }\n  }\n}\n```",
+    "test_template": "```javascript\nconst ClassName = require('../src/path/class-name');\n\ndescribe('ClassName', () => {\n  let instance;\n\n  beforeEach(() => {\n    instance = new ClassName(mockConfig);\n  });\n\n  describe('methodName', () => {\n    it('should handle success case', async () => {\n      const result = await instance.methodName(validInput);\n      expect(result).toEqual(expectedOutput);\n    });\n\n    it('should handle error case', async () => {\n      await expect(instance.methodName(invalidInput))\n        .rejects.toThrow('Expected error message');\n    });\n  });\n});\n```",
+    "config_file_template": "```json\n{\n  \"environment\": \"development\",\n  \"logging\": {\n    \"level\": \"info\",\n    \"format\": \"json\"\n  },\n  \"apis\": {\n    \"twitter\": {\n      \"baseUrl\": \"https://api.twitter.com/2\",\n      \"rateLimit\": {\n        \"requests\": 300,\n        \"windowMs\": 10800000\n      }\n    }\n  }\n}\n```"
+  },
+  "troubleshooting": {
+    "common_issues": [
+      {
+        "issue": "Twitter API rate limit exceeded",
+        "solution": "Implement exponential backoff and request queuing"
+      },
+      {
+        "issue": "RSS feed parsing failures",
+        "solution": "Add XML validation and error recovery mechanisms"
+      },
+      {
+        "issue": "n8n workflow execution errors",
+        "solution": "Check node configurations and error handling paths"
+      },
+      {
+        "issue": "Test coverage below 85%",
+        "solution": "Add tests for edge cases and error scenarios"
+      }
+    ]
+  },
+  "development_workflow": {
+    "step1": "Read and understand the specific Issue requirements",
+    "step2": "Create test file first (Red phase of TDD)",
+    "step3": "Implement minimal code to pass tests (Green phase)",
+    "step4": "Refactor and optimize while maintaining tests (Refactor phase)",
+    "step5": "Update documentation and configuration as needed",
+    "step6": "Verify test coverage meets 85% minimum"
+  }
+}
