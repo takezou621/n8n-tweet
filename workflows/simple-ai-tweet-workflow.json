@@ -27,7 +27,7 @@
     },
     {
       "parameters": {
-        "url": "https://openai.com/blog/rss/",
+        "url": "https://openai.com/news/rss.xml",
         "options": {
           "timeout": 30000
         }
