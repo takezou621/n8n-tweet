@@ -1,0 +1,102 @@
+{
+  "feeds": [
+    {
+      "name": "ArXiv AI",
+      "url": "https://arxiv.org/rss/cs.AI",
+      "category": "research",
+      "enabled": true,
+      "description": "ArXiv Computer Science - Artificial Intelligence papers",
+      "updateInterval": "*/30 * * * *",
+      "timeout": 60000,
+      "retryAttempts": 3,
+      "priority": "high"
+    },
+    {
+      "name": "OpenAI Blog",
+      "url": "https://blog.openai.com/rss/",
+      "category": "industry", 
+      "enabled": true,
+      "description": "OpenAI official blog posts and research updates",
+      "updateInterval": "0 */6 * * *",
+      "timeout": 30000,
+      "retryAttempts": 2,
+      "priority": "high"
+    },
+    {
+      "name": "Google AI Blog",
+      "url": "https://ai.googleblog.com/feeds/posts/default",
+      "category": "industry",
+      "enabled": true,
+      "description": "Google AI research and product announcements",
+      "updateInterval": "0 */6 * * *", 
+      "timeout": 30000,
+      "retryAttempts": 2,
+      "priority": "high"
+    },
+    {
+      "name": "DeepMind Blog",
+      "url": "https://deepmind.com/blog/feed/basic/",
+      "category": "research",
+      "enabled": true,
+      "description": "DeepMind research breakthroughs and insights",
+      "updateInterval": "0 */12 * * *",
+      "timeout": 30000,
+      "retryAttempts": 2,
+      "priority": "medium"
+    },
+    {
+      "name": "MIT Technology Review AI",
+      "url": "https://www.technologyreview.com/feed/",
+      "category": "news",
+      "enabled": true,
+      "description": "MIT Technology Review AI and tech news",
+      "updateInterval": "0 */4 * * *",
+      "timeout": 30000,
+      "retryAttempts": 2,
+      "priority": "medium"
+    },
+    {
+      "name": "Towards Data Science",
+      "url": "https://towardsdatascience.com/feed",
+      "category": "community",
+      "enabled": false,
+      "description": "Medium publication for data science and ML articles",
+      "updateInterval": "0 */8 * * *",
+      "timeout": 30000,
+      "retryAttempts": 1,
+      "priority": "low"
+    }
+  ],
+  "globalSettings": {
+    "maxConcurrentFeeds": 5,
+    "defaultTimeout": 30000,
+    "defaultRetryAttempts": 2,
+    "retryDelay": 5000,
+    "userAgent": "n8n-tweet-bot/1.0.0 (AI content aggregator)",
+    "cacheTime": 3600000,
+    "errorThreshold": 5,
+    "rateLimitDelay": 1000
+  },
+  "categories": {
+    "research": {
+      "weight": 1.0,
+      "keywords": ["arxiv", "paper", "research", "study", "algorithm", "neural", "deep learning"],
+      "hashtagPrefix": "#AIResearch"
+    },
+    "industry": {
+      "weight": 0.9,
+      "keywords": ["product", "announcement", "release", "update", "company"],
+      "hashtagPrefix": "#AIIndustry"
+    },
+    "news": {
+      "weight": 0.8,
+      "keywords": ["news", "breakthrough", "development", "trend"],
+      "hashtagPrefix": "#AINews"
+    },
+    "community": {
+      "weight": 0.6,
+      "keywords": ["tutorial", "guide", "opinion", "discussion"],
+      "hashtagPrefix": "#AICommunity"
+    }
+  }
+}

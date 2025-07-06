@@ -1,0 +1,23 @@
+{
+  "name": "RSS Feed Reader",
+  "nodes": [
+    {
+      "parameters": {
+        "feedUrl": "=https://arxiv.org/rss/cs.AI",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "RSS Feed Reader",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [250, 300]
+    }
+  ],
+  "connections": {},
+  "active": false,
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "versionId": "1"
+}

@@ -1,0 +1,268 @@
+{
+  "name": "AI RSS Feed Reader",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/30 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "rss-scheduler",
+      "name": "RSS Feed Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load RSS feed configuration\nconst fs = require('fs');\nconst path = require('path');\n\ntry {\n  const configPath = path.join(process.cwd(), 'config', 'rss-feeds.json');\n  const configData = fs.readFileSync(configPath, 'utf8');\n  const config = JSON.parse(configData);\n  \n  // Filter enabled feeds\n  const enabledFeeds = config.feeds.filter(feed => feed.enabled);\n  \n  return enabledFeeds.map(feed => ({\n    json: {\n      feedConfig: feed,\n      globalSettings: config.globalSettings,\n      categories: config.categories\n    }\n  }));\n} catch (error) {\n  console.error('Failed to load RSS configuration:', error.message);\n  return [{\n    json: {\n      error: error.message,\n      fallbackFeeds: [\n        {\n          name: 'ArXiv AI',\n          url: 'https://arxiv.org/rss/cs.AI',\n          category: 'research',\n          enabled: true\n        }\n      ]\n    }\n  }];\n}"
+      },
+      "id": "load-config",
+      "name": "Load Feed Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize FeedParser and parse RSS feed\nconst FeedParser = require('./src/utils/feed-parser');\n\nconst feedConfig = $input.item.json.feedConfig;\nconst globalSettings = $input.item.json.globalSettings;\n\nif (!feedConfig) {\n  throw new Error('No feed configuration provided');\n}\n\ntry {\n  const parser = new FeedParser(globalSettings);\n  \n  // Parse the RSS feed\n  const result = await parser.parseWithRetry(feedConfig);\n  \n  // Return parsed items with metadata\n  return result.items.map(item => ({\n    json: {\n      ...item,\n      feedMetadata: result.metadata,\n      processedAt: new Date().toISOString(),\n      source: 'rss-feed-reader'\n    }\n  }));\n  \n} catch (error) {\n  console.error(`Failed to parse feed ${feedConfig.name}:`, error.message);\n  \n  // Return error information for monitoring\n  return [{\n    json: {\n      error: error.message,\n      feedName: feedConfig.name,\n      feedUrl: feedConfig.url,\n      timestamp: new Date().toISOString(),\n      source: 'rss-feed-reader-error'\n    }\n  }];\n}"
+      },
+      "id": "parse-feed",
+      "name": "Parse RSS Feed", 
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "success-filter",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "undefined",
+                "operation": "undefined"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-success",
+      "name": "Filter Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "error-filter",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "undefined",
+                "operation": "exists"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-errors",
+      "name": "Filter Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "{{ $vars.WEBHOOK_ALERTS_URL || 'http://localhost:3000/alerts' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "alert",
+              "value": "rss_feed_error"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.error }}"
+            },
+            {
+              "name": "feedName",
+              "value": "={{ $json.feedName }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $json.timestamp }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "alert-webhook",
+      "name": "Send Error Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 480]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "create",
+        "messageUid": "",
+        "subject": "RSS Feed Reader - Successful Parsing",
+        "message": "Successfully parsed {{ $json.title }} from {{ $json.feedName }}\\n\\nDescription: {{ $json.description }}\\nLink: {{ $json.link }}\\nPublished: {{ $json.pubDate }}",
+        "additionalFields": {
+          "attachments": []
+        }
+      },
+      "id": "log-success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and enrich RSS feed items for downstream processing\nconst items = $input.all();\n\nconst processedItems = items.map(item => {\n  const data = item.json;\n  \n  // Basic validation\n  if (!data.title || !data.link) {\n    console.warn('Skipping invalid item:', data);\n    return null;\n  }\n  \n  // Add processing metadata\n  return {\n    json: {\n      ...data,\n      // Add processing timestamp\n      enrichedAt: new Date().toISOString(),\n      \n      // Add quality score (placeholder for future filtering)\n      qualityScore: data.wordCount > 50 ? 1.0 : 0.5,\n      \n      // Add hashtag hints based on category\n      hashtagHints: data.category === 'research' ? ['#AIResearch', '#MachineLearning'] : ['#AI', '#Tech'],\n      \n      // Mark as ready for next processing stage\n      status: 'ready_for_filtering',\n      \n      // Add unique identifier if missing\n      id: data.guid || `${data.feedName}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`\n    }\n  };\n}).filter(item => item !== null);\n\nreturn processedItems;"
+      },
+      "id": "enrich-items",
+      "name": "Enrich Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "RSS Feed Schedule": {
+      "main": [
+        [
+          {
+            "node": "Load Feed Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Feed Config": {
+      "main": [
+        [
+          {
+            "node": "Parse RSS Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse RSS Feed": {
+      "main": [
+        [
+          {
+            "node": "Filter Success",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Success": {
+      "main": [
+        [
+          {
+            "node": "Enrich Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Errors": {
+      "main": [
+        [
+          {
+            "node": "Send Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich Items": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "rss-feed-reader",
+  "tags": [
+    {
+      "createdAt": "2025-07-06T07:00:00.000Z",
+      "updatedAt": "2025-07-06T07:00:00.000Z",
+      "id": "ai-automation",
+      "name": "AI Automation"
+    },
+    {
+      "createdAt": "2025-07-06T07:00:00.000Z", 
+      "updatedAt": "2025-07-06T07:00:00.000Z",
+      "id": "rss-processing",
+      "name": "RSS Processing"
+    }
+  ]
+}
