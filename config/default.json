@@ -13,6 +13,16 @@
       "apiVersion": "v2",
       "baseUrl": "https://api.twitter.com/2",
       "timeout": 30000,
+      "credentials": {
+        "apiKey": "${TWITTER_API_KEY}",
+        "apiSecret": "${TWITTER_API_SECRET}",
+        "accessToken": "${TWITTER_ACCESS_TOKEN}",
+        "accessTokenSecret": "${TWITTER_ACCESS_TOKEN_SECRET}",
+        "bearerToken": "${TWITTER_BEARER_TOKEN}"
+      },
+      "rateLimitDelay": 60000,
+      "maxRetries": 3,
+      "enableDryRun": false,
       "rateLimit": {
         "tweets": {
           "requests": 300,
@@ -57,8 +67,12 @@
   },
   "storage": {
     "tweetHistory": {
+      "storageFile": "./cache/tweet-history.json",
       "maxEntries": 10000,
-      "retentionDays": 90
+      "retentionDays": 90,
+      "enableCompression": true,
+      "autoSave": true,
+      "saveInterval": 300000
     },
     "rssCache": {
       "maxEntries": 50000,

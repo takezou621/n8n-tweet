@@ -1,0 +1,339 @@
+{
+  "name": "AI Tweet Bot - RSS to Twitter",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtHour": 6
+            },
+            {
+              "field": "hours", 
+              "triggerAtHour": 12
+            },
+            {
+              "field": "hours",
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "name": "Schedule AI Content",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$node[\"RSS Feed Config\"].json[\"feeds\"][0][\"url\"]}}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fetch OpenAI Blog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        460,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$node[\"RSS Feed Config\"].json[\"feeds\"][1][\"url\"]}}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fetch ArXiv AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        460,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$node[\"RSS Feed Config\"].json[\"feeds\"][2][\"url\"]}}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fetch Google AI Blog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        460,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// RSS Feed Configuration\nconst config = {\n  \"feeds\": [\n    {\n      \"name\": \"OpenAI Blog\",\n      \"url\": \"https://openai.com/blog/rss/\",\n      \"category\": \"openai\",\n      \"enabled\": true\n    },\n    {\n      \"name\": \"ArXiv AI\", \n      \"url\": \"http://export.arxiv.org/rss/cs.AI\",\n      \"category\": \"research\",\n      \"enabled\": true\n    },\n    {\n      \"name\": \"Google AI Blog\",\n      \"url\": \"https://ai.googleblog.com/feeds/posts/default\",\n      \"category\": \"google\",\n      \"enabled\": true\n    },\n    {\n      \"name\": \"Towards Data Science\",\n      \"url\": \"https://towardsdatascience.com/feed\",\n      \"category\": \"community\",\n      \"enabled\": true\n    },\n    {\n      \"name\": \"Anthropic Blog\",\n      \"url\": \"https://www.anthropic.com/blog.rss\",\n      \"category\": \"anthropic\",\n      \"enabled\": true\n    }\n  ],\n  \"categories\": {\n    \"openai\": {\n      \"hashtags\": [\"#OpenAI\", \"#AI\", \"#ChatGPT\"],\n      \"priority\": 1\n    },\n    \"research\": {\n      \"hashtags\": [\"#AIResearch\", \"#MachineLearning\", \"#ArXiv\"],\n      \"priority\": 2\n    },\n    \"google\": {\n      \"hashtags\": [\"#GoogleAI\", \"#TensorFlow\", \"#AI\"],\n      \"priority\": 1\n    },\n    \"community\": {\n      \"hashtags\": [\"#DataScience\", \"#AI\", \"#TechCommunity\"],\n      \"priority\": 3\n    },\n    \"anthropic\": {\n      \"hashtags\": [\"#Anthropic\", \"#Claude\", \"#AI\"],\n      \"priority\": 1\n    }\n  }\n};\n\nreturn config;"
+      },
+      "name": "RSS Feed Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// RSS Parser and Content Filter\nconst Parser = require('rss-parser');\nconst parser = new Parser();\n\n// AI関連キーワード\nconst aiKeywords = [\n  'artificial intelligence', 'machine learning', 'deep learning',\n  'neural network', 'transformer', 'gpt', 'llm', 'chatgpt',\n  'computer vision', 'natural language processing', 'nlp',\n  'reinforcement learning', 'supervised learning', 'unsupervised learning',\n  'algorithm', 'model', 'dataset', 'training', 'inference',\n  'openai', 'anthropic', 'claude', 'tensorflow', 'pytorch',\n  'generative ai', 'diffusion model', 'stable diffusion',\n  'ai safety', 'alignment', 'ethics', 'bias'\n];\n\n// コンテンツフィルタリング\nfunction isAIRelated(text) {\n  const lowerText = text.toLowerCase();\n  return aiKeywords.some(keyword => lowerText.includes(keyword));\n}\n\n// ツイート生成\nfunction generateTweet(item, category) {\n  const maxLength = 260; // ハッシュタグ用のスペースを確保\n  const categoryConfig = $node[\"RSS Feed Config\"].json.categories[category];\n  \n  let title = item.title;\n  if (title.length > maxLength) {\n    title = title.substring(0, maxLength - 3) + '...';\n  }\n  \n  // ハッシュタグを追加\n  const hashtags = categoryConfig.hashtags.slice(0, 2).join(' ');\n  \n  // URLを短縮形で追加\n  const tweet = `${title}\\n\\n${hashtags}\\n${item.link}`;\n  \n  // 280文字制限チェック\n  if (tweet.length > 280) {\n    const availableLength = 280 - hashtags.length - item.link.length - 4; // 改行とスペース分\n    title = title.substring(0, availableLength - 3) + '...';\n    return `${title}\\n\\n${hashtags}\\n${item.link}`;\n  }\n  \n  return tweet;\n}\n\n// メイン処理\nconst allItems = [];\nconst inputs = $input.all();\n\nfor (const input of inputs) {\n  if (input.json && input.json.data) {\n    try {\n      // RSS XMLをパース\n      const feed = await parser.parseString(input.json.data);\n      \n      for (const item of feed.items) {\n        // AI関連コンテンツかチェック\n        const isRelevant = isAIRelated(item.title + ' ' + (item.contentSnippet || item.content || ''));\n        \n        if (isRelevant) {\n          // 公開日が24時間以内かチェック\n          const publishDate = new Date(item.pubDate);\n          const now = new Date();\n          const hoursDiff = (now - publishDate) / (1000 * 60 * 60);\n          \n          if (hoursDiff <= 24) {\n            // カテゴリを判定\n            let category = 'general';\n            if (input.json.url && input.json.url.includes('openai.com')) category = 'openai';\n            else if (input.json.url && input.json.url.includes('arxiv.org')) category = 'research';\n            else if (input.json.url && input.json.url.includes('googleblog.com')) category = 'google';\n            else if (input.json.url && input.json.url.includes('anthropic.com')) category = 'anthropic';\n            \n            const tweet = generateTweet(item, category);\n            \n            allItems.push({\n              title: item.title,\n              link: item.link,\n              pubDate: item.pubDate,\n              category: category,\n              tweet: tweet,\n              priority: $node[\"RSS Feed Config\"].json.categories[category]?.priority || 5\n            });\n          }\n        }\n      }\n    } catch (error) {\n      console.error('RSS parsing error:', error);\n    }\n  }\n}\n\n// 優先度とpubDateでソート\nallItems.sort((a, b) => {\n  if (a.priority !== b.priority) {\n    return a.priority - b.priority;\n  }\n  return new Date(b.pubDate) - new Date(a.pubDate);\n});\n\n// 重複チェック（簡易版）\nconst uniqueItems = [];\nconst seenTitles = new Set();\n\nfor (const item of allItems) {\n  const normalizedTitle = item.title.toLowerCase().replace(/[^\\w\\s]/g, '').trim();\n  if (!seenTitles.has(normalizedTitle)) {\n    seenTitles.add(normalizedTitle);\n    uniqueItems.push(item);\n  }\n}\n\n// 最大3件に制限\nconst selectedItems = uniqueItems.slice(0, 3);\n\nreturn selectedItems.map(item => ({ json: item }));"
+      },
+      "name": "Process RSS Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth1Api",
+        "text": "={{$json.tweet}}",
+        "additionalFields": {}
+      },
+      "name": "Post to Twitter",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1,
+      "position": [
+        900,
+        320
+      ],
+      "credentials": {
+        "twitterOAuth1Api": {
+          "id": "twitter-credentials",
+          "name": "Twitter API Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ツイート投稿ログ\nconst items = $input.all();\nconst timestamp = new Date().toISOString();\n\nconst logData = {\n  timestamp: timestamp,\n  totalProcessed: items.length,\n  successful: items.filter(item => item.json.success !== false).length,\n  failed: items.filter(item => item.json.success === false).length,\n  tweets: items.map(item => ({\n    title: item.json.title,\n    category: item.json.category,\n    success: item.json.success !== false,\n    tweetLength: item.json.tweet ? item.json.tweet.length : 0\n  }))\n};\n\nconsole.log('AI Tweet Bot Execution Log:', JSON.stringify(logData, null, 2));\n\nreturn [{ json: logData }];"
+      },
+      "name": "Log Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1a1f4e1-5c6e-4b6a-9f4c-8d9e7f2a3b1c",
+              "leftValue": "={{$json.failed}}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Check for Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$vars.SLACK_WEBHOOK_URL}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"🚨 AI Tweet Bot Alert\",\n  \"attachments\": [\n    {\n      \"color\": \"danger\",\n      \"fields\": [\n        {\n          \"title\": \"Failed Posts\",\n          \"value\": \"{{$json.failed}}\",\n          \"short\": true\n        },\n        {\n          \"title\": \"Total Processed\",\n          \"value\": \"{{$json.totalProcessed}}\",\n          \"short\": true\n        },\n        {\n          \"title\": \"Timestamp\",\n          \"value\": \"{{$json.timestamp}}\",\n          \"short\": false\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "name": "Send Error Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1560,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$vars.SLACK_WEBHOOK_URL}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"✅ AI Tweet Bot Success\",\n  \"attachments\": [\n    {\n      \"color\": \"good\",\n      \"fields\": [\n        {\n          \"title\": \"Successful Posts\",\n          \"value\": \"{{$json.successful}}\",\n          \"short\": true\n        },\n        {\n          \"title\": \"Total Processed\",\n          \"value\": \"{{$json.totalProcessed}}\",\n          \"short\": true\n        },\n        {\n          \"title\": \"Timestamp\",\n          \"value\": \"{{$json.timestamp}}\",\n          \"short\": false\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "name": "Send Success Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1560,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule AI Content": {
+      "main": [
+        [
+          {
+            "node": "RSS Feed Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Feed Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch OpenAI Blog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch ArXiv AI",
+            "type": "main", 
+            "index": 0
+          },
+          {
+            "node": "Fetch Google AI Blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch OpenAI Blog": {
+      "main": [
+        [
+          {
+            "node": "Process RSS Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch ArXiv AI": {
+      "main": [
+        [
+          {
+            "node": "Process RSS Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Google AI Blog": {
+      "main": [
+        [
+          {
+            "node": "Process RSS Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process RSS Content": {
+      "main": [
+        [
+          {
+            "node": "Post to Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Twitter": {
+      "main": [
+        [
+          {
+            "node": "Log Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Results": {
+      "main": [
+        [
+          {
+            "node": "Check for Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Errors": {
+      "main": [
+        [
+          {
+            "node": "Send Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Success Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f8d7e6c5-b4a3-9f2e-1d8c-7a6b5c4d3e2f",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "ai-tweet-bot-instance"
+  },
+  "id": "ai-tweet-rss-workflow",
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "ai-automation",
+      "name": "AI Automation"
+    },
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z", 
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "social-media",
+      "name": "Social Media"
+    }
+  ]
+}
