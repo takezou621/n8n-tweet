@@ -321,6 +321,7 @@
     "templateCredsSetupCompleted": false,
     "instanceId": "ai-tweet-bot-instance"
   },
+  "active": true,
   "id": "ai-tweet-rss-workflow",
   "tags": [
     {

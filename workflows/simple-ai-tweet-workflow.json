@@ -1,0 +1,100 @@
+{
+  "name": "AI Tweet Bot - Simple RSS to Twitter",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtHour": 6
+            },
+            {
+              "field": "hours", 
+              "triggerAtHour": 12
+            },
+            {
+              "field": "hours",
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "name": "Daily AI News Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://openai.com/blog/rss/",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Fetch OpenAI RSS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple RSS to Tweet Processor\nconst Parser = require('rss-parser');\nconst parser = new Parser();\n\n// Get input data\nconst inputData = $input.all()[0];\n\nif (!inputData || !inputData.json || !inputData.json.data) {\n  return [{ json: { error: 'No RSS data received' } }];\n}\n\ntry {\n  // Parse RSS\n  const feed = await parser.parseString(inputData.json.data);\n  \n  // Get latest item\n  const latestItem = feed.items[0];\n  \n  if (!latestItem) {\n    return [{ json: { error: 'No items in RSS feed' } }];\n  }\n  \n  // Create tweet\n  let tweet = latestItem.title;\n  \n  // Truncate if too long\n  if (tweet.length > 250) {\n    tweet = tweet.substring(0, 247) + '...';\n  }\n  \n  // Add hashtags and link\n  tweet += '\\n\\n#OpenAI #AI #TechNews';\n  tweet += '\\n' + latestItem.link;\n  \n  // Final length check\n  if (tweet.length > 280) {\n    const maxTitle = 280 - 50; // Reserve space for hashtags and link\n    tweet = latestItem.title.substring(0, maxTitle - 3) + '...';\n    tweet += '\\n\\n#OpenAI #AI';\n    tweet += '\\n' + latestItem.link;\n  }\n  \n  return [{\n    json: {\n      title: latestItem.title,\n      link: latestItem.link,\n      pubDate: latestItem.pubDate,\n      tweet: tweet,\n      tweetLength: tweet.length\n    }\n  }];\n  \n} catch (error) {\n  return [{ json: { error: 'RSS parsing failed: ' + error.message } }];\n}"
+      },
+      "name": "Process RSS to Tweet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tweet Content Validator and Logger\nconst input = $input.all()[0];\n\nif (!input || !input.json) {\n  return [{ json: { error: 'No input data', success: false } }];\n}\n\nconst data = input.json;\n\n// Log the generated tweet\nconsole.log('Generated Tweet:', JSON.stringify({\n  timestamp: new Date().toISOString(),\n  title: data.title,\n  tweetLength: data.tweetLength,\n  tweet: data.tweet\n}, null, 2));\n\n// Validate tweet\nif (!data.tweet || data.tweet.length > 280) {\n  return [{ json: { error: 'Invalid tweet format', success: false } }];\n}\n\n// Success - ready for posting\nreturn [{\n  json: {\n    ...data,\n    success: true,\n    readyToPost: true,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "Validate and Log",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Daily AI News Schedule": {
+      "main": [
+        [
+          {
+            "node": "Fetch OpenAI RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch OpenAI RSS": {
+      "main": [
+        [
+          {
+            "node": "Process RSS to Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process RSS to Tweet": {
+      "main": [
+        [
+          {
+            "node": "Validate and Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "simple-ai-tweet-workflow",
+  "tags": []
+}
