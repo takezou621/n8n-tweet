@@ -1,0 +1,220 @@
+{
+  "description": "ログシステム設定ファイル - 包括的なログ管理設定",
+  "version": "1.0.0",
+  "general": {
+    "level": "info",
+    "format": "combined",
+    "colorize": true,
+    "timestamp": true,
+    "maxFiles": 10,
+    "maxSize": "10m",
+    "tailable": true,
+    "zippedArchive": true
+  },
+  "transports": {
+    "console": {
+      "enabled": true,
+      "level": "debug",
+      "format": "simple",
+      "colorize": true,
+      "timestamp": true,
+      "handleExceptions": true,
+      "handleRejections": true
+    },
+    "file": {
+      "enabled": true,
+      "level": "info",
+      "filename": "logs/app.log",
+      "maxSize": "10m",
+      "maxFiles": 10,
+      "tailable": true,
+      "format": "json",
+      "timestamp": true
+    },
+    "error": {
+      "enabled": true,
+      "level": "error", 
+      "filename": "logs/error.log",
+      "maxSize": "5m",
+      "maxFiles": 5,
+      "format": "json",
+      "timestamp": true,
+      "handleExceptions": true,
+      "handleRejections": true
+    }
+  },
+  "categories": {
+    "rss": {
+      "level": "info",
+      "filename": "logs/rss.log",
+      "maxSize": "5m",
+      "maxFiles": 7,
+      "format": "json"
+    },
+    "twitter": {
+      "level": "info",
+      "filename": "logs/twitter.log", 
+      "maxSize": "5m",
+      "maxFiles": 7,
+      "format": "json"
+    },
+    "filtering": {
+      "level": "debug",
+      "filename": "logs/filtering.log",
+      "maxSize": "5m", 
+      "maxFiles": 5,
+      "format": "json"
+    },
+    "monitoring": {
+      "level": "info",
+      "filename": "logs/monitoring.log",
+      "maxSize": "10m",
+      "maxFiles": 7,
+      "format": "json"
+    },
+    "security": {
+      "level": "warn",
+      "filename": "logs/security.log",
+      "maxSize": "5m",
+      "maxFiles": 10,
+      "format": "json"
+    },
+    "performance": {
+      "level": "info",
+      "filename": "logs/performance.log",
+      "maxSize": "5m",
+      "maxFiles": 5,
+      "format": "json"
+    }
+  },
+  "formatting": {
+    "timestamp": {
+      "format": "YYYY-MM-DD HH:mm:ss",
+      "timezone": "UTC"
+    },
+    "json": {
+      "space": 0,
+      "replacer": null
+    },
+    "simple": {
+      "template": "${timestamp} ${level}: ${message}",
+      "includeMetadata": false
+    },
+    "combined": {
+      "template": "${timestamp} [${level}] ${category || 'general'}: ${message}",
+      "includeMetadata": true,
+      "metadataKey": "meta"
+    }
+  },
+  "filters": {
+    "sensitive": {
+      "enabled": true,
+      "fields": [
+        "password",
+        "token",
+        "apiKey",
+        "secret",
+        "credential",
+        "authorization"
+      ],
+      "replacement": "[REDACTED]"
+    },
+    "size": {
+      "enabled": true,
+      "maxMessageLength": 10000,
+      "truncateMessage": "... [TRUNCATED]"
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics": {
+      "logRates": true,
+      "errorRates": true,
+      "performanceMetrics": true
+    },
+    "alerts": {
+      "errorThreshold": 10,
+      "warningThreshold": 50,
+      "timeWindow": 300000
+    }
+  },
+  "rotation": {
+    "enabled": true,
+    "frequency": "daily",
+    "maxAge": "30d",
+    "maxSize": "100m",
+    "compress": true,
+    "archiveDirectory": "logs/archive"
+  },
+  "development": {
+    "debugMode": false,
+    "verboseErrors": true,
+    "includeStackTrace": true,
+    "logFunctionCalls": false,
+    "profilePerformance": false
+  },
+  "production": {
+    "level": "warn",
+    "enableConsole": false,
+    "enableRemoteLogging": false,
+    "enableMetrics": true,
+    "enableAlerts": true,
+    "sanitizeOutput": true
+  },
+  "integration": {
+    "syslog": {
+      "enabled": false,
+      "host": "localhost",
+      "port": 514,
+      "protocol": "udp",
+      "facility": "local0"
+    },
+    "elasticsearch": {
+      "enabled": false,
+      "host": "localhost",
+      "port": 9200,
+      "index": "n8n-tweet-logs",
+      "type": "_doc"
+    },
+    "slack": {
+      "enabled": false,
+      "webhook": "",
+      "channel": "#alerts",
+      "minLevel": "error"
+    }
+  },
+  "storage": {
+    "local": {
+      "directory": "logs",
+      "createDirectory": true,
+      "permissions": "0755"
+    },
+    "cloud": {
+      "enabled": false,
+      "provider": "aws-s3",
+      "bucket": "",
+      "region": "us-east-1",
+      "uploadInterval": "daily"
+    }
+  },
+  "security": {
+    "encryptLogs": false,
+    "signLogs": false,
+    "logAuthentication": true,
+    "logAuthorization": true,
+    "logDataAccess": true,
+    "auditTrail": {
+      "enabled": true,
+      "filename": "logs/audit.log",
+      "includeUserData": false,
+      "includeRequestData": true
+    }
+  },
+  "performance": {
+    "bufferSize": 1000,
+    "flushInterval": 1000,
+    "enableAsync": true,
+    "enableCompression": true,
+    "memoryLimit": "100mb"
+  }
+}

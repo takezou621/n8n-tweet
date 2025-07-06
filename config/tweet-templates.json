@@ -1,0 +1,290 @@
+{
+  "description": "ツイート生成用テンプレート設定",
+  "version": "1.0.0",
+  "lastUpdated": "2025-07-06",
+  "templates": [
+    {
+      "id": "ai_breakthrough",
+      "category": "ai",
+      "weight": 1.0,
+      "template": "🚀 AI Breakthrough: {{title}}\n\n{{summary}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["summary"],
+      "enabled": true
+    },
+    {
+      "id": "research_paper",
+      "category": "research",
+      "weight": 0.9,
+      "template": "📄 New Research: {{title}}\n\n{{keyFindings}}\n\n📖 {{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["keyFindings"],
+      "enabled": true
+    },
+    {
+      "id": "tech_news",
+      "category": "technology",
+      "weight": 0.8,
+      "template": "💻 Tech News: {{title}}\n\n{{highlight}}\n\n🔗 {{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["highlight"],
+      "enabled": true
+    },
+    {
+      "id": "company_update",
+      "category": "companies",
+      "weight": 0.7,
+      "template": "🏢 {{company}} Update: {{title}}\n\n{{impact}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["company", "impact"],
+      "enabled": true
+    },
+    {
+      "id": "application_showcase",
+      "category": "applications",
+      "weight": 0.8,
+      "template": "🎯 AI Application: {{title}}\n\n{{useCase}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["useCase"],
+      "enabled": true
+    },
+    {
+      "id": "ml_model",
+      "category": "ai",
+      "weight": 0.9,
+      "template": "🤖 New ML Model: {{title}}\n\n{{performance}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["performance"],
+      "enabled": true
+    },
+    {
+      "id": "conference_highlight",
+      "category": "research",
+      "weight": 0.8,
+      "template": "🎤 {{conference}}: {{title}}\n\n{{insight}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["conference", "insight"],
+      "enabled": true
+    },
+    {
+      "id": "startup_news",
+      "category": "companies",
+      "weight": 0.6,
+      "template": "🚀 Startup Spotlight: {{title}}\n\n{{innovation}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["innovation"],
+      "enabled": true
+    },
+    {
+      "id": "industry_trend",
+      "category": "technology",
+      "weight": 0.7,
+      "template": "📈 Industry Trend: {{title}}\n\n{{trend}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["trend"],
+      "enabled": true
+    },
+    {
+      "id": "educational_content",
+      "category": "ai",
+      "weight": 0.6,
+      "template": "🎓 Learn AI: {{title}}\n\n{{learningPoint}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["learningPoint"],
+      "enabled": true
+    },
+    {
+      "id": "opensource_project",
+      "category": "technology",
+      "weight": 0.8,
+      "template": "🔓 Open Source: {{title}}\n\n{{description}}\n\n⭐ {{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["description"],
+      "enabled": true
+    },
+    {
+      "id": "dataset_release",
+      "category": "research",
+      "weight": 0.7,
+      "template": "📊 New Dataset: {{title}}\n\n{{specs}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["specs"],
+      "enabled": true
+    },
+    {
+      "id": "tool_announcement",
+      "category": "applications",
+      "weight": 0.7,
+      "template": "🛠️ New AI Tool: {{title}}\n\n{{capability}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["capability"],
+      "enabled": true
+    },
+    {
+      "id": "ethics_discussion",
+      "category": "ai",
+      "weight": 0.6,
+      "template": "⚖️ AI Ethics: {{title}}\n\n{{consideration}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["consideration"],
+      "enabled": true
+    },
+    {
+      "id": "simple_news",
+      "category": "general",
+      "weight": 0.5,
+      "template": "{{emoji}} {{title}}\n\n{{url}}\n\n{{hashtags}}",
+      "maxLength": 280,
+      "requiredFields": ["title", "url"],
+      "optionalFields": ["emoji"],
+      "enabled": true
+    }
+  ],
+  "hashtags": {
+    "ai": ["#AI", "#ArtificialIntelligence", "#MachineLearning", "#DeepLearning", "#ML", "#AINews", "#TechAI"],
+    "research": ["#Research", "#Science", "#Paper", "#Study", "#Innovation", "#Discovery", "#Academic"],
+    "technology": ["#Tech", "#Technology", "#Innovation", "#Digital", "#Future", "#TechNews", "#Computing"],
+    "companies": ["#Startup", "#TechCompany", "#Business", "#Industry", "#Corporate", "#TechBusiness"],
+    "applications": ["#Application", "#UseCase", "#RealWorld", "#Implementation", "#Practical", "#Solution"],
+    "general": ["#News", "#Update", "#Latest", "#Trending", "#Important", "#Breaking"]
+  },
+  "emojis": {
+    "ai": ["🤖", "🧠", "💡", "⚡", "🚀", "🔬", "🎯", "✨"],
+    "research": ["📄", "📊", "📈", "🔍", "🧪", "📖", "🎓", "🏆"],
+    "technology": ["💻", "📱", "⚙️", "🔧", "🌐", "💾", "🖥️", "⌨️"],
+    "companies": ["🏢", "🏪", "🚀", "💼", "📈", "💰", "🎯", "⭐"],
+    "applications": ["🎯", "🛠️", "📲", "💡", "🔄", "⚡", "🎪", "🎨"],
+    "general": ["📰", "🔥", "⚡", "💫", "🌟", "🎉", "📢", "🚨"]
+  },
+  "replacements": {
+    "title": {
+      "maxLength": 120,
+      "fallback": "Interesting AI Development"
+    },
+    "summary": {
+      "maxLength": 100,
+      "fallback": "Check out this interesting development"
+    },
+    "keyFindings": {
+      "maxLength": 80,
+      "fallback": "Significant research findings"
+    },
+    "highlight": {
+      "maxLength": 90,
+      "fallback": "Notable tech development"
+    },
+    "impact": {
+      "maxLength": 80,
+      "fallback": "Important industry impact"
+    },
+    "useCase": {
+      "maxLength": 90,
+      "fallback": "Practical AI application"
+    },
+    "performance": {
+      "maxLength": 70,
+      "fallback": "Improved performance metrics"
+    },
+    "insight": {
+      "maxLength": 80,
+      "fallback": "Key insights from the event"
+    },
+    "innovation": {
+      "maxLength": 80,
+      "fallback": "Innovative technology solution"
+    },
+    "trend": {
+      "maxLength": 80,
+      "fallback": "Emerging industry trend"
+    },
+    "learningPoint": {
+      "maxLength": 80,
+      "fallback": "Educational content on AI"
+    },
+    "description": {
+      "maxLength": 90,
+      "fallback": "Open source project"
+    },
+    "specs": {
+      "maxLength": 70,
+      "fallback": "Research dataset"
+    },
+    "capability": {
+      "maxLength": 80,
+      "fallback": "AI tool capabilities"
+    },
+    "consideration": {
+      "maxLength": 80,
+      "fallback": "Important ethical considerations"
+    }
+  },
+  "rules": {
+    "hashtagLimit": 5,
+    "emojiLimit": 3,
+    "urlReservedLength": 23,
+    "hashtagReservedLength": 50,
+    "minContentLength": 50,
+    "avoidDuplicateHashtags": true,
+    "prioritizeRelevantHashtags": true,
+    "balanceContentAndHashtags": true,
+    "ensureReadability": true,
+    "avoidSpammy": true
+  },
+  "generation": {
+    "strategy": "weighted_random",
+    "fallbackTemplate": "🤖 {{title}}\n\n{{url}}\n\n{{hashtags}}",
+    "contentExtraction": {
+      "summaryMethod": "first_paragraph",
+      "summaryLength": 100,
+      "keywordExtraction": true,
+      "entityExtraction": false
+    },
+    "optimization": {
+      "engagementOptimization": true,
+      "lengthOptimization": true,
+      "hashtagOptimization": true,
+      "timingOptimization": false
+    }
+  },
+  "validation": {
+    "checkLength": true,
+    "checkHashtags": true,
+    "checkEmojis": true,
+    "checkURL": true,
+    "checkContent": true,
+    "checkSpam": true,
+    "checkDuplicate": true
+  },
+  "customization": {
+    "brandVoice": "informative_friendly",
+    "tone": "professional_enthusiastic",
+    "audience": "tech_professionals",
+    "personality": "knowledgeable_helper",
+    "style": "concise_engaging"
+  },
+  "analytics": {
+    "trackTemplateUsage": true,
+    "trackEngagement": false,
+    "trackCTR": false,
+    "optimizeBasedOnPerformance": false
+  },
+  "scheduling": {
+    "timeBasedTemplates": false,
+    "eventBasedTemplates": false,
+    "trending_templates": false
+  }
+}

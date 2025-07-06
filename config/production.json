@@ -1,0 +1,326 @@
+{
+  "description": "本番環境設定ファイル - プロダクション環境での最適化設定",
+  "version": "1.0.0",
+  "environment": "production",
+  "server": {
+    "port": 5678,
+    "host": "0.0.0.0",
+    "timezone": "UTC",
+    "workers": 2,
+    "clustering": true,
+    "maxMemory": "2GB",
+    "gracefulShutdownTimeout": 30000
+  },
+  "logging": {
+    "level": "warn",
+    "enableConsole": false,
+    "enableFile": true,
+    "enableRemoteLogging": true,
+    "enableMetrics": true,
+    "enableAudit": true,
+    "sanitizeOutput": true,
+    "rotation": {
+      "enabled": true,
+      "frequency": "daily",
+      "maxAge": "30d",
+      "maxSize": "100m",
+      "compress": true
+    }
+  },
+  "monitoring": {
+    "enableHealthCheck": true,
+    "enableMetrics": true,
+    "enablePerformanceMonitoring": true,
+    "enableAlerts": true,
+    "healthCheckInterval": 60000,
+    "metricsCollectionInterval": 30000,
+    "alertThresholds": {
+      "errorRate": 5,
+      "responseTime": 10000,
+      "memoryUsage": 85,
+      "cpuUsage": 80,
+      "diskUsage": 90
+    },
+    "endpoints": {
+      "health": "/healthz",
+      "metrics": "/metrics",
+      "status": "/status"
+    }
+  },
+  "rss": {
+    "enabled": true,
+    "fetchInterval": 900000,
+    "batchSize": 10,
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "retryDelay": 5000,
+    "concurrentFeeds": 5,
+    "enableCache": true,
+    "cacheExpiry": 3600000,
+    "validateSSL": true,
+    "userAgent": "n8n-tweet/1.0.0 (+https://github.com/takezou621/n8n-tweet)"
+  },
+  "filtering": {
+    "enabled": true,
+    "aiRelevanceThreshold": 0.7,
+    "duplicateCheckEnabled": true,
+    "duplicateThreshold": 0.8,
+    "contentMinLength": 100,
+    "contentMaxLength": 5000,
+    "blacklistEnabled": true,
+    "whitelistEnabled": true,
+    "languageFilter": ["en", "ja"],
+    "qualityScoreThreshold": 0.6
+  },
+  "tweetGeneration": {
+    "enabled": true,
+    "maxLength": 280,
+    "hashtagLimit": 5,
+    "enableEmojis": true,
+    "enableMentions": false,
+    "templates": {
+      "useRotation": true,
+      "fallbackTemplate": "🤖 AI News: {{title}} {{url}} {{hashtags}}"
+    },
+    "optimization": {
+      "enableUrlShortening": true,
+      "enableHashtagOptimization": true,
+      "enableEngagementOptimization": true
+    }
+  },
+  "twitter": {
+    "enabled": true,
+    "dryRun": false,
+    "rateLimiting": {
+      "enabled": true,
+      "tweetsPerHour": 250,
+      "tweetsPerDay": 2000,
+      "tweetsPerMonth": 45000,
+      "bufferPercentage": 20
+    },
+    "retry": {
+      "maxAttempts": 3,
+      "baseDelay": 2000,
+      "maxDelay": 60000,
+      "exponentialBackoff": true
+    },
+    "posting": {
+      "minInterval": 600000,
+      "maxDailyTweets": 48,
+      "quietHours": {
+        "enabled": true,
+        "start": "23:00",
+        "end": "06:00",
+        "timezone": "UTC"
+      },
+      "scheduling": {
+        "enabled": true,
+        "optimalTimes": ["09:00", "12:00", "15:00", "18:00"],
+        "avoidWeekends": false
+      }
+    }
+  },
+  "storage": {
+    "tweetHistory": {
+      "enabled": true,
+      "storageType": "file",
+      "encryptionEnabled": true,
+      "backupEnabled": true,
+      "retentionDays": 365,
+      "cleanupInterval": 86400000
+    },
+    "cache": {
+      "enabled": true,
+      "type": "redis",
+      "host": "localhost",
+      "port": 6379,
+      "database": 0,
+      "keyPrefix": "n8n-tweet:",
+      "defaultTTL": 3600,
+      "maxMemory": "500mb",
+      "evictionPolicy": "allkeys-lru"
+    }
+  },
+  "security": {
+    "enableEncryption": true,
+    "enableInputValidation": true,
+    "enableOutputSanitization": true,
+    "enableRateLimiting": true,
+    "enableSecurityHeaders": true,
+    "cors": {
+      "enabled": true,
+      "origin": ["https://n8n-tweet.com"],
+      "credentials": true
+    },
+    "apiKeys": {
+      "rotationEnabled": true,
+      "rotationInterval": 2592000000
+    },
+    "audit": {
+      "enabled": true,
+      "logLevel": "info",
+      "includeSensitiveData": false,
+      "retentionDays": 90
+    }
+  },
+  "performance": {
+    "enableCompression": true,
+    "enableCaching": true,
+    "enableBatching": true,
+    "enableConnectionPooling": true,
+    "requestTimeout": 30000,
+    "maxConcurrentRequests": 100,
+    "memoryLimit": "2GB",
+    "gcOptimization": true
+  },
+  "backup": {
+    "enabled": true,
+    "schedule": "0 2 * * *",
+    "retention": {
+      "daily": 7,
+      "weekly": 4,
+      "monthly": 12
+    },
+    "storage": {
+      "type": "local",
+      "path": "/var/backups/n8n-tweet",
+      "compression": true,
+      "encryption": true
+    },
+    "verify": {
+      "enabled": true,
+      "checksumValidation": true
+    }
+  },
+  "deployment": {
+    "strategy": "rolling",
+    "healthCheckTimeout": 60000,
+    "gracefulShutdown": true,
+    "zeroDowntime": true,
+    "rollbackEnabled": true,
+    "autoScaling": {
+      "enabled": false,
+      "minInstances": 1,
+      "maxInstances": 3,
+      "targetCPU": 70,
+      "targetMemory": 80
+    }
+  },
+  "alerting": {
+    "enabled": true,
+    "channels": {
+      "email": {
+        "enabled": false,
+        "recipients": []
+      },
+      "slack": {
+        "enabled": false,
+        "webhook": "",
+        "channel": "#alerts"
+      },
+      "webhook": {
+        "enabled": false,
+        "url": "",
+        "timeout": 5000
+      }
+    },
+    "rules": {
+      "errorRate": {
+        "threshold": 5,
+        "timeWindow": 300,
+        "severity": "high"
+      },
+      "responseTime": {
+        "threshold": 10000,
+        "timeWindow": 300,
+        "severity": "medium"
+      },
+      "memoryUsage": {
+        "threshold": 85,
+        "timeWindow": 600,
+        "severity": "high"
+      },
+      "apiQuotaUsage": {
+        "threshold": 90,
+        "timeWindow": 3600,
+        "severity": "medium"
+      }
+    }
+  },
+  "maintenance": {
+    "enableMaintenanceMode": false,
+    "maintenanceMessage": "System under maintenance. Please try again later.",
+    "scheduledMaintenance": {
+      "enabled": false,
+      "schedule": "0 3 * * 0",
+      "duration": 1800000,
+      "preNotification": 3600000
+    },
+    "autoUpdates": {
+      "enabled": false,
+      "schedule": "0 4 * * 1",
+      "backupBeforeUpdate": true,
+      "rollbackOnFailure": true
+    }
+  },
+  "compliance": {
+    "dataRetention": {
+      "personalData": 365,
+      "systemLogs": 90,
+      "auditLogs": 2555,
+      "performanceMetrics": 30
+    },
+    "privacy": {
+      "enableAnonymization": true,
+      "enableDataMinimization": true,
+      "enableConsentManagement": false
+    },
+    "regulations": {
+      "gdprCompliance": true,
+      "ccpaCompliance": true,
+      "coppaCompliance": false
+    }
+  },
+  "integration": {
+    "n8n": {
+      "enabled": true,
+      "host": "localhost",
+      "port": 5678,
+      "protocol": "http",
+      "authentication": {
+        "type": "basic",
+        "username": "",
+        "password": ""
+      },
+      "webhook": {
+        "enabled": true,
+        "baseUrl": "https://n8n-tweet.com/webhook",
+        "authentication": true
+      }
+    },
+    "webhooks": {
+      "enabled": true,
+      "endpoints": [
+        {
+          "name": "rss-trigger",
+          "path": "/webhook/rss-trigger",
+          "method": "POST",
+          "authentication": true
+        },
+        {
+          "name": "manual-trigger",
+          "path": "/webhook/manual-trigger",
+          "method": "POST",
+          "authentication": true
+        }
+      ]
+    }
+  },
+  "development": {
+    "enableDebugMode": false,
+    "enableVerboseLogging": false,
+    "enableProfiler": false,
+    "enableTestEndpoints": false,
+    "enableMockMode": false
+  }
+}
