@@ -35,10 +35,10 @@
     },
     {
       "name": "DeepMind Blog",
-      "url": "https://deepmind.google/discover/blog/",
+      "url": "https://deepmind.google/blog/rss.xml",
       "category": "research",
-      "enabled": false,
-      "description": "DeepMind research breakthroughs and insights (RSS feed not available)",
+      "enabled": true,
+      "description": "Google DeepMind research breakthroughs and insights",
       "updateInterval": "0 */12 * * *",
       "timeout": 30000,
       "retryAttempts": 2,
