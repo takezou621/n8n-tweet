@@ -2,7 +2,7 @@
   "feeds": [
     {
       "name": "ArXiv AI",
-      "url": "https://arxiv.org/rss/cs.AI",
+      "url": "http://export.arxiv.org/rss/cs.AI",
       "category": "research",
       "enabled": true,
       "description": "ArXiv Computer Science - Artificial Intelligence papers",
@@ -23,11 +23,11 @@
       "priority": "high"
     },
     {
-      "name": "Google Research Blog",
-      "url": "https://research.google/blog/rss/",
+      "name": "Google AI Blog",
+      "url": "https://blog.google/technology/ai/rss/",
       "category": "industry",
       "enabled": true,
-      "description": "Google Research latest developments and papers",
+      "description": "Google AI blog with latest AI technology updates",
       "updateInterval": "0 */6 * * *", 
       "timeout": 30000,
       "retryAttempts": 2,
@@ -38,7 +38,7 @@
       "url": "https://deepmind.google/blog/rss.xml",
       "category": "research",
       "enabled": true,
-      "description": "DeepMind research breakthroughs and insights",
+      "description": "Google DeepMind research breakthroughs and insights",
       "updateInterval": "0 */12 * * *",
       "timeout": 30000,
       "retryAttempts": 2,
