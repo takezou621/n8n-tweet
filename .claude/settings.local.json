@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(chmod:*)",
+      "Bash(./quick.sh:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:www.anthropic.com)",
+      "Bash(gh issue create:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(mkdir:*)",
+      "Bash(timeout:*)",
+      "Bash(DASHBOARD_PORT=3001 node -e \"\nconst server = require(''./dashboard/backend/server'');\nconst app = new server();\napp.start().then(() => {\n  console.log(''✅ Server started successfully'');\n  setTimeout(() => {\n    console.log(''✅ Test completed - shutting down'');\n    process.exit(0);\n  }, 2000);\n}).catch(err => {\n  console.error(''❌ Server failed to start:'', err.message);\n  process.exit(1);\n});\n\")",
+      "Bash(DASHBOARD_PORT=3001 node -e \"\nconst server = require(''./dashboard/backend/server'');\nconst app = new server();\napp.start().then(() => {\n  console.log(''✅ Server started successfully'');\n  setTimeout(() => {\n    console.log(''✅ Test completed - shutting down'');\n    process.exit(0);\n  }, 2000);\n}).catch(err => {\n  console.error(''❌ Server failed to start:'', err.message);\n  process.exit(1);\n});\n\")",
+      "Bash(DASHBOARD_PORT=3002 node -e \"\nconst server = require(''./dashboard/backend/server'');\nconst app = new server();\napp.start().then(() => {\n  console.log(''✅ Server started successfully'');\n  setTimeout(() => {\n    console.log(''✅ Test completed - shutting down'');\n    process.exit(0);\n  }, 2000);\n}).catch(err => {\n  console.error(''❌ Server failed to start:'', err.message);\n  process.exit(1);\n});\n\")",
+      "Bash(DB_HOST=localhost DB_PORT=5432 DB_NAME=n8n DB_USER=n8n DB_PASSWORD=n8n_secure_password node dashboard/database/run-migrations.js status)",
+      "Bash(psql:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(DB_HOST=localhost DB_PORT=5433 DB_NAME=n8n DB_USER=n8n DB_PASSWORD=n8n_secure_password node dashboard/database/run-migrations.js status)",
+      "Bash(DB_HOST=localhost DB_PORT=5433 DB_NAME=n8n DB_USER=n8n DB_PASSWORD=n8n_secure_password node dashboard/database/run-migrations.js run)",
+      "Bash(DB_HOST=localhost DB_PORT=5433 DB_NAME=dashboard DB_USER=n8n DB_PASSWORD=n8n_secure_password node dashboard/database/run-migrations.js run)",
+      "Bash(DB_HOST=localhost DB_PORT=5433 DB_NAME=dashboard DB_USER=n8n DB_PASSWORD=n8n_secure_password DASHBOARD_PORT=3002 node -e \"\nconst server = require(''./dashboard/backend/server'');\nconst app = new server();\napp.start().then(() => {\n  console.log(''✅ Dashboard server started successfully with database connection'');\n  setTimeout(() => {\n    console.log(''✅ Integration test completed - shutting down'');\n    process.exit(0);\n  }, 3000);\n}).catch(err => {\n  console.error(''❌ Integration test failed:'', err.message);\n  process.exit(1);\n});\n\")",
+      "Bash(DB_HOST=localhost DB_PORT=5433 DB_NAME=dashboard DB_USER=n8n DB_PASSWORD=n8n_secure_password node -e \"\nconst { database } = require(''./dashboard/backend/services/database'');\ndatabase.testConnection().then(success => {\n  if (success) {\n    console.log(''✅ Database connection test passed'');\n    return database.getPoolStatus();\n  } else {\n    throw new Error(''Database connection test failed'');\n  }\n}).then(status => {\n  console.log(''📊 Pool status:'', status);\n  return database.close();\n}).then(() => {\n  console.log(''✅ Database service test completed'');\n  process.exit(0);\n}).catch(err => {\n  console.error(''❌ Database test failed:'', err.message);\n  process.exit(1);\n});\n\")",
+      "Bash(DB_HOST=localhost DB_PORT=5433 DB_NAME=dashboard DB_USER=n8n DB_PASSWORD=n8n_secure_password node -e \"\nconst KeywordFilter = require(''./dashboard/backend/models/KeywordFilter'');\nconst TweetTemplate = require(''./dashboard/backend/models/TweetTemplate'');\n\nasync function testModels() {\n  console.log(''Testing KeywordFilter model...'');\n  const filters = await KeywordFilter.findActive();\n  console.log(''✅ Found'', filters.length, ''active keyword filters'');\n  \n  const stats = await KeywordFilter.getStats();\n  console.log(''✅ Keyword filter stats:'', stats);\n  \n  console.log(''Testing TweetTemplate model...'');\n  const templates = await TweetTemplate.findActive();\n  console.log(''✅ Found'', templates.length, ''active tweet templates'');\n  \n  if (templates.length > 0) {\n    const preview = templates[0].preview();\n    console.log(''✅ Template preview:'', preview);\n  }\n  \n  console.log(''✅ Model tests completed successfully'');\n}\n\ntestModels().catch(err => {\n  console.error(''❌ Model test failed:'', err.message);\n  process.exit(1);\n});\n\")"
+    ],
+    "deny": []
+  }
+}

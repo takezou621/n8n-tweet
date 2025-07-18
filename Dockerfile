@@ -72,18 +72,21 @@ RUN mkdir -p \
     /app/cache \
     /app/backups \
     /app/data \
+    /app/dashboard/uploads \
     /home/n8n && \
     chown -R n8n:n8n /app /home/n8n
 
 # Environment variables
 ENV NODE_ENV=production \
     PORT=3000 \
+    DASHBOARD_PORT=3001 \
     LOG_LEVEL=warn \
     ENABLE_CONSOLE_LOG=false \
     CACHE_DIR=/app/cache \
     LOGS_DIR=/app/logs \
     BACKUPS_DIR=/app/backups \
-    DATA_DIR=/app/data
+    DATA_DIR=/app/data \
+    JWT_SECRET=change-this-in-production
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
@@ -92,8 +95,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Switch to non-root user
 USER n8n
 
-# Expose port
-EXPOSE 3000
+# Expose ports
+EXPOSE 3000 3001
 
 # Volume for persistent data
 VOLUME ["/app/data", "/app/logs", "/app/backups", "/app/cache"]
