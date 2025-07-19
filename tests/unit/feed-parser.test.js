@@ -16,8 +16,10 @@ describe('FeedParser', () => {
     mockConfig = {
       timeout: 30000,
       retryAttempts: 2,
+      retryDelay: 5000,
       userAgent: 'test-bot/1.0.0',
-      rateLimitDelay: 100
+      rateLimitDelay: 100,
+      maxConcurrentFeeds: 5
     }
     feedParser = new FeedParser(mockConfig)
   })
@@ -43,7 +45,7 @@ describe('FeedParser', () => {
     it('should load RSS feed configuration from file', async () => {
       const configPath = path.join(__dirname, '../../config/rss-feeds.json')
       const config = await feedParser.loadFeedConfig(configPath)
-      
+
       expect(config).toHaveProperty('feeds')
       expect(config).toHaveProperty('globalSettings')
       expect(config).toHaveProperty('categories')
@@ -53,7 +55,7 @@ describe('FeedParser', () => {
 
     it('should handle missing config file gracefully', async () => {
       const invalidPath = '/non/existent/path.json'
-      
+
       await expect(feedParser.loadFeedConfig(invalidPath))
         .rejects.toThrow('Failed to load feed configuration')
     })
@@ -102,7 +104,7 @@ describe('FeedParser', () => {
           guid: 'test-guid-1'
         },
         {
-          title: 'Test Article 2', 
+          title: 'Test Article 2',
           description: 'Another AI research article',
           link: 'https://example.com/article2',
           pubDate: new Date('2025-07-05T00:00:00Z'),
@@ -150,8 +152,8 @@ describe('FeedParser', () => {
     })
 
     it('should handle timeout errors', async () => {
-      feedParser.rssParser.parseURL = jest.fn().mockImplementation(() => 
-        new Promise((_, reject) => 
+      feedParser.rssParser.parseURL = jest.fn().mockImplementation(() =>
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Timeout')), 100)
         )
       )
@@ -224,7 +226,7 @@ describe('FeedParser', () => {
           enabled: true
         },
         {
-          name: 'Feed 2', 
+          name: 'Feed 2',
           url: 'https://example2.com/rss',
           category: 'test',
           enabled: true
@@ -239,13 +241,13 @@ describe('FeedParser', () => {
 
       // Mock successful parsing for enabled feeds
       feedParser.parseFeed = jest.fn()
-        .mockResolvedValueOnce({ 
-          metadata: { title: 'Feed 1' }, 
-          items: [{ title: 'Article 1' }] 
+        .mockResolvedValueOnce({
+          metadata: { title: 'Feed 1' },
+          items: [{ title: 'Article 1' }]
         })
-        .mockResolvedValueOnce({ 
-          metadata: { title: 'Feed 2' }, 
-          items: [{ title: 'Article 2' }] 
+        .mockResolvedValueOnce({
+          metadata: { title: 'Feed 2' },
+          items: [{ title: 'Article 2' }]
         })
 
       const results = await feedParser.parseMultipleFeeds(feedConfigs)
@@ -264,16 +266,16 @@ describe('FeedParser', () => {
         },
         {
           name: 'Bad Feed',
-          url: 'https://bad.com/rss', 
+          url: 'https://bad.com/rss',
           category: 'test',
           enabled: true
         }
       ]
 
-      feedParser.parseFeed = jest.fn()
-        .mockResolvedValueOnce({ 
-          metadata: { title: 'Good Feed' }, 
-          items: [{ title: 'Good Article' }] 
+      feedParser.parseWithRetry = jest.fn()
+        .mockResolvedValueOnce({
+          metadata: { title: 'Good Feed' },
+          items: [{ title: 'Good Article' }]
         })
         .mockRejectedValueOnce(new Error('Bad feed error'))
 
@@ -321,7 +323,7 @@ describe('FeedParser', () => {
 
       await expect(feedParser.parseWithRetry(feedConfig))
         .rejects.toThrow('Max retry attempts exceeded')
-      
+
       expect(feedParser.parseFeed).toHaveBeenCalledTimes(2)
     })
   })
@@ -329,7 +331,7 @@ describe('FeedParser', () => {
   describe('error handling', () => {
     it('should log errors appropriately', async () => {
       const loggerSpy = jest.spyOn(feedParser.logger, 'error')
-      
+
       const feedConfig = {
         name: 'Error Feed',
         url: 'https://error.com/rss',

@@ -1,7 +1,7 @@
 /**
  * Twitter API v2 クライアント
  * ツイート投稿と認証を管理
- * 
+ *
  * Features:
  * - ツイート投稿
  * - レート制限管理
@@ -13,7 +13,7 @@ const { TwitterApi } = require('twitter-api-v2')
 const winston = require('winston')
 
 class TwitterClient {
-  constructor(config = {}) {
+  constructor (config = {}) {
     this.config = {
       // デフォルト設定
       rateLimitDelay: 60000, // 1分
@@ -22,7 +22,7 @@ class TwitterClient {
       enableDryRun: false,
       ...config
     }
-    
+
     this.initializeLogger()
     this.initializeClient()
     this.postHistory = []
@@ -32,7 +32,7 @@ class TwitterClient {
   /**
    * ロガーを初期化
    */
-  initializeLogger() {
+  initializeLogger () {
     this.logger = winston.createLogger({
       level: 'info',
       format: winston.format.combine(
@@ -55,7 +55,7 @@ class TwitterClient {
   /**
    * Twitter API クライアントを初期化
    */
-  initializeClient() {
+  initializeClient () {
     try {
       if (!this.config.credentials) {
         throw new Error('Twitter API credentials are required')
@@ -75,14 +75,14 @@ class TwitterClient {
       this.client = new TwitterApi({
         appKey: apiKey,
         appSecret: apiSecret,
-        accessToken: accessToken,
+        accessToken,
         accessSecret: accessTokenSecret
       })
 
       this.logger.info('Twitter client initialized successfully')
     } catch (error) {
-      this.logger.error('Failed to initialize Twitter client', { 
-        error: error.message 
+      this.logger.error('Failed to initialize Twitter client', {
+        error: error.message
       })
       throw error
     }
@@ -91,26 +91,26 @@ class TwitterClient {
   /**
    * 認証をテストする
    */
-  async testAuthentication() {
+  async testAuthentication () {
     try {
       this.logger.info('Testing Twitter authentication')
-      
+
       const user = await this.client.v2.me()
-      
+
       this.logger.info('Twitter authentication successful', {
         username: user.data.username,
         userId: user.data.id
       })
-      
+
       return {
         success: true,
         user: user.data
       }
     } catch (error) {
-      this.logger.error('Twitter authentication failed', { 
-        error: error.message 
+      this.logger.error('Twitter authentication failed', {
+        error: error.message
       })
-      
+
       return {
         success: false,
         error: error.message
@@ -121,7 +121,7 @@ class TwitterClient {
   /**
    * レート制限をチェック
    */
-  checkRateLimit() {
+  checkRateLimit () {
     if (!this.lastPostTime) {
       return { canPost: true }
     }
@@ -143,7 +143,7 @@ class TwitterClient {
   /**
    * ツイートを投稿する
    */
-  async postTweet(tweetData) {
+  async postTweet (tweetData) {
     try {
       this.logger.info('Starting tweet posting process', {
         tweetLength: tweetData.text?.length || 0,
@@ -151,16 +151,20 @@ class TwitterClient {
         dryRun: this.config.enableDryRun
       })
 
+      // ツイート内容の検証（ドライランでも実行）
+      await this.validateTweet(tweetData)
+
       // ドライランモードの場合は実際に投稿しない
       if (this.config.enableDryRun) {
         this.logger.info('DRY RUN: Tweet would be posted', { tweetData })
-        
+
         const dryRunResult = {
           id: 'dry-run-' + Date.now(),
           text: tweetData.text
         }
-        
-        // ドライランでも履歴を記録
+
+        // ドライランでも履歴を記録し、lastPostTimeを更新
+        this.lastPostTime = Date.now()
         this.postHistory.push({
           id: dryRunResult.id,
           text: tweetData.text,
@@ -168,7 +172,7 @@ class TwitterClient {
           success: true,
           dryRun: true
         })
-        
+
         return {
           success: true,
           dryRun: true,
@@ -181,9 +185,6 @@ class TwitterClient {
       if (!rateLimit.canPost) {
         throw new Error(rateLimit.message)
       }
-
-      // ツイート内容の検証
-      await this.validateTweet(tweetData)
 
       // ツイート投稿
       const result = await this.client.v2.tweet(tweetData.text)
@@ -207,7 +208,7 @@ class TwitterClient {
         data: result.data
       }
     } catch (error) {
-      this.logger.error('Failed to post tweet', { 
+      this.logger.error('Failed to post tweet', {
         error: error.message,
         tweetText: tweetData.text?.substring(0, 50) + '...'
       })
@@ -230,8 +231,8 @@ class TwitterClient {
   /**
    * ツイート内容を検証する
    */
-  async validateTweet(tweetData) {
-    if (!tweetData || !tweetData.text) {
+  async validateTweet (tweetData) {
+    if (!tweetData || tweetData.text === undefined || tweetData.text === null) {
       throw new Error('Tweet text is required')
     }
 
@@ -252,7 +253,7 @@ class TwitterClient {
       .filter(post => post.success)
       .slice(-10) // 最新10件をチェック
 
-    const isDuplicate = recentTweets.some(post => 
+    const isDuplicate = recentTweets.some(post =>
       post.text === tweetData.text
     )
 
@@ -268,18 +269,18 @@ class TwitterClient {
   /**
    * 複数のツイートを順次投稿する
    */
-  async postMultipleTweets(tweets) {
+  async postMultipleTweets (tweets) {
     const results = []
-    
-    this.logger.info('Starting batch tweet posting', { 
-      count: tweets.length 
+
+    this.logger.info('Starting batch tweet posting', {
+      count: tweets.length
     })
 
     for (let i = 0; i < tweets.length; i++) {
       const tweet = tweets[i]
-      
+
       this.logger.info(`Posting tweet ${i + 1}/${tweets.length}`)
-      
+
       try {
         const result = await this.postTweet(tweet)
         results.push(result)
@@ -290,19 +291,19 @@ class TwitterClient {
           await this.sleep(this.config.rateLimitDelay)
         }
       } catch (error) {
-        this.logger.error(`Failed to post tweet ${i + 1}`, { 
-          error: error.message 
+        this.logger.error(`Failed to post tweet ${i + 1}`, {
+          error: error.message
         })
         results.push({
           success: false,
           error: error.message,
-          tweet: tweet
+          tweet
         })
       }
     }
 
     const successCount = results.filter(r => r.success).length
-    
+
     this.logger.info('Batch tweet posting completed', {
       total: tweets.length,
       successful: successCount,
@@ -320,7 +321,7 @@ class TwitterClient {
   /**
    * 投稿履歴を取得する
    */
-  getPostHistory(limit = 50) {
+  getPostHistory (limit = 50) {
     return this.postHistory
       .slice(-limit)
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -329,11 +330,11 @@ class TwitterClient {
   /**
    * 統計情報を取得する
    */
-  getStats() {
+  getStats () {
     const total = this.postHistory.length
     const successful = this.postHistory.filter(post => post.success).length
     const failed = total - successful
-    
+
     return {
       total,
       successful,
@@ -346,10 +347,10 @@ class TwitterClient {
   /**
    * ヘルスチェック
    */
-  async healthCheck() {
+  async healthCheck () {
     try {
       const authResult = await this.testAuthentication()
-      
+
       return {
         status: authResult.success ? 'healthy' : 'unhealthy',
         authenticated: authResult.success,
@@ -371,12 +372,12 @@ class TwitterClient {
   /**
    * 設定を更新する
    */
-  updateConfig(newConfig) {
+  updateConfig (newConfig) {
     this.config = {
       ...this.config,
       ...newConfig
     }
-    
+
     this.logger.info('Twitter client configuration updated', {
       enableDryRun: this.config.enableDryRun,
       rateLimitDelay: this.config.rateLimitDelay
@@ -386,7 +387,7 @@ class TwitterClient {
   /**
    * 待機関数
    */
-  sleep(ms) {
+  sleep (ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
 }
