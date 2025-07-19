@@ -490,7 +490,7 @@ jobs:
                 return {
                   success: true,
                   output: 'Fallback code generation completed',
-                  files_modified: [bugfixFile]
+                  files_modified: []
                 };
               } else {
                 // For non-bugfix issues, create type-specific templates
@@ -557,43 +557,44 @@ jobs:
           
           async function generateFilesBasedOnIssue(issue, analysis) {
             const issueText = (issue.title + ' ' + (issue.body || '')).toLowerCase();
-            let generatedFiles = 0;
+            let generatedFiles = [];
             
             try {
               // Check if this is a deployment issue
               if (issueText.includes('deploy') || issueText.includes('デプロイ')) {
-                await generateDeploymentFiles(issue);
-                generatedFiles++;
+                const deployFiles = await generateDeploymentFiles(issue);
+                generatedFiles.push(...deployFiles);
               }
               
               // Check if this is a testing issue
               if (issueText.includes('test') || issueText.includes('テスト')) {
-                await generateTestFiles(issue);
-                generatedFiles++;
+                const testFiles = await generateTestFiles(issue);
+                generatedFiles.push(...testFiles);
               }
               
               // Check if this is a documentation issue
               if (issueText.includes('doc') || issueText.includes('ドキュメント')) {
-                await generateDocumentationFiles(issue);
-                generatedFiles++;
+                const docFiles = await generateDocumentationFiles(issue);
+                generatedFiles.push(...docFiles);
               }
               
               // Generate based on analysis type
               if (analysis.type === 'bugfix') {
-                await generateBugfixFiles(issue, analysis);
-                generatedFiles++;
+                const bugfixFiles = await generateBugfixFiles(issue, analysis);
+                generatedFiles.push(...bugfixFiles);
               } else if (analysis.type === 'feature') {
-                await generateFeatureFiles(issue, analysis);
-                generatedFiles++;
+                const featureFiles = await generateFeatureFiles(issue, analysis);
+                generatedFiles.push(...featureFiles);
               }
               
               // If no specific type matched, create a general implementation
-              if (generatedFiles === 0) {
-                await generateGeneralImplementation(issue, analysis);
-                generatedFiles++;
+              if (generatedFiles.length === 0) {
+                const generalFiles = await generateGeneralImplementation(issue, analysis);
+                generatedFiles.push(...generalFiles);
               }
               
-              return generatedFiles > 0;
+              console.log('✅ Generated ' + generatedFiles.length + ' files: ' + generatedFiles.join(', '));
+              return generatedFiles.length > 0;
               
             } catch (error) {
               console.error('File generation error: ' + error.message);
@@ -602,6 +603,8 @@ jobs:
           }
           
           async function generateDeploymentFiles(issue) {
+            const generatedFiles = [];
+            
             // Create deployment script if it doesn't exist
             if (!await fileExists('scripts/deploy-n8n.sh')) {
               await execAsync('mkdir -p scripts');
@@ -609,6 +612,7 @@ jobs:
               fs.writeFileSync('scripts/deploy-n8n.sh', deployScript);
               await execAsync('chmod +x scripts/deploy-n8n.sh');
               console.log('✅ Generated deployment script');
+              generatedFiles.push('scripts/deploy-n8n.sh');
             }
             
             // Create backup script if it doesn't exist
@@ -617,7 +621,10 @@ jobs:
               fs.writeFileSync('scripts/backup-workflows.sh', backupScript);
               await execAsync('chmod +x scripts/backup-workflows.sh');
               console.log('✅ Generated backup script');
+              generatedFiles.push('scripts/backup-workflows.sh');
             }
+            
+            return generatedFiles;
           }
           
           async function generateTestFiles(issue) {
@@ -626,6 +633,7 @@ jobs:
             const testFile = 'tests/test_issue_' + issue.number + '.py';
             fs.writeFileSync(testFile, testContent);
             console.log('✅ Generated test file: ' + testFile);
+            return [testFile];
           }
           
           async function generateDocumentationFiles(issue) {
@@ -634,6 +642,7 @@ jobs:
             const docFile = 'docs/issue_' + issue.number + '.md';
             fs.writeFileSync(docFile, docContent);
             console.log('✅ Generated documentation: ' + docFile);
+            return [docFile];
           }
           
           async function generateBugfixFiles(issue, analysis) {
@@ -642,6 +651,7 @@ jobs:
             const bugfixFile = 'src/bugfix_' + issue.number + '.py';
             fs.writeFileSync(bugfixFile, bugfixContent);
             console.log('✅ Generated bugfix file: ' + bugfixFile);
+            return [bugfixFile];
           }
           
           async function generateFeatureFiles(issue, analysis) {
@@ -650,6 +660,7 @@ jobs:
             const featureFile = 'src/feature_' + issue.number + '.py';
             fs.writeFileSync(featureFile, featureContent);
             console.log('✅ Generated feature file: ' + featureFile);
+            return [featureFile];
           }
           
           async function generateGeneralImplementation(issue, analysis) {
@@ -658,6 +669,7 @@ jobs:
             const filename = 'src/implementation_' + issue.number + '.py';
             fs.writeFileSync(filename, content);
             console.log('✅ Generated general implementation: ' + filename);
+            return [filename];
           }
           
           async function fileExists(filepath) {
