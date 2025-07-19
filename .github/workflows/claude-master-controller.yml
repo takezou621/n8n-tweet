@@ -1,0 +1,207 @@
+name: Claude Master Controller
+
+on:
+  schedule:
+    # 毎日14:00 UTC（日本時間23:00）に実行
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+    inputs:
+      max_issues:
+        description: 'Maximum number of issues to process'
+        required: false
+        type: string
+        default: '5'
+      priority_only:
+        description: 'Process only high priority issues'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  process-issues-sequentially:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+      
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Sequential Issue Processing Controller
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const maxIssues = parseInt('${{ inputs.max_issues || 5 }}');
+          const priorityOnly = '${{ inputs.priority_only }}' === 'true';
+          
+          console.log('🎮 Claude Master Controller Started');
+          console.log(`📊 Configuration: Max Issues: ${maxIssues}, Priority Only: ${priorityOnly}`);
+          
+          // Get issues with automation-ready label
+          const issues = await github.rest.issues.listForRepo({
+            owner,
+            repo,
+            labels: 'automation-ready',
+            state: 'open',
+            sort: 'created',
+            direction: 'asc',
+            per_page: 100
+          });
+          
+          // Filter issues
+          let issuesToProcess = issues.data.filter(issue => {
+            const labels = issue.labels.map(l => l.name);
+            
+            // Skip if already completed or being processed
+            if (labels.includes('claude-completed') || 
+                labels.includes('automation-in-progress') ||
+                labels.includes('manual-only')) {
+              return false;
+            }
+            
+            // Filter by priority if requested
+            if (priorityOnly) {
+              return labels.includes('priority:high') || labels.includes('priority:critical');
+            }
+            
+            return true;
+          });
+          
+          // Sort by priority
+          issuesToProcess.sort((a, b) => {
+            const getPriority = (issue) => {
+              const labels = issue.labels.map(l => l.name);
+              if (labels.includes('priority:critical')) return 0;
+              if (labels.includes('priority:high')) return 1;
+              if (labels.includes('priority:medium')) return 2;
+              return 3;
+            };
+            return getPriority(a) - getPriority(b);
+          });
+          
+          // Limit the number of issues
+          issuesToProcess = issuesToProcess.slice(0, maxIssues);
+          
+          if (issuesToProcess.length === 0) {
+            console.log('✅ No issues to process');
+            return;
+          }
+          
+          console.log(`📋 Found ${issuesToProcess.length} issues to process`);
+          
+          // Process issues sequentially
+          for (const issue of issuesToProcess) {
+            console.log(`\n🔄 Processing Issue #${issue.number}: ${issue.title}`);
+            
+            try {
+              // Add in-progress label
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: issue.number,
+                labels: ['automation-in-progress']
+              });
+              
+              // Trigger claude-code-automation workflow
+              console.log(`🚀 Triggering automation for Issue #${issue.number}`);
+              const workflowDispatch = await github.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id: 'claude-code-automation.yml',
+                ref: 'main',
+                inputs: {
+                  issue_number: issue.number.toString(),
+                  priority: issue.labels.find(l => l.name.startsWith('priority:'))?.name.split(':')[1] || 'medium'
+                }
+              });
+              
+              console.log(`⏳ Waiting for automation to complete...`);
+              
+              // Wait for workflow to complete (max 10 minutes)
+              const startTime = Date.now();
+              const timeout = 10 * 60 * 1000; // 10 minutes
+              let completed = false;
+              
+              while (!completed && (Date.now() - startTime) < timeout) {
+                await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds
+                
+                // Check if issue is closed or has completed label
+                const updatedIssue = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issue.number
+                });
+                
+                const labels = updatedIssue.data.labels.map(l => l.name);
+                if (updatedIssue.data.state === 'closed' || 
+                    labels.includes('claude-completed') ||
+                    labels.includes('automation-failed')) {
+                  completed = true;
+                }
+              }
+              
+              // Remove in-progress label
+              try {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  name: 'automation-in-progress'
+                });
+              } catch (e) {
+                // Label might already be removed
+              }
+              
+              if (completed) {
+                console.log(`✅ Issue #${issue.number} processing completed`);
+              } else {
+                console.log(`⚠️ Issue #${issue.number} processing timed out`);
+              }
+              
+              // Wait between issues to prevent conflicts
+              console.log('⏸️ Waiting 30 seconds before next issue...');
+              await new Promise(resolve => setTimeout(resolve, 30000));
+              
+            } catch (error) {
+              console.error(`❌ Error processing Issue #${issue.number}: ${error.message}`);
+              
+              // Remove in-progress label on error
+              try {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  name: 'automation-in-progress'
+                });
+              } catch (e) {
+                // Label might already be removed
+              }
+            }
+          }
+          
+          console.log('\n✅ Master Controller completed');
+          
+          // Generate summary report
+          const processedCount = issuesToProcess.length;
+          const summary = `## 📊 Automation Summary\n\n` +
+            `- **Issues Processed**: ${processedCount}\n` +
+            `- **Max Issues Limit**: ${maxIssues}\n` +
+            `- **Priority Only**: ${priorityOnly}\n` +
+            `- **Execution Time**: ${new Date().toISOString()}\n`;
+          
+          console.log(summary);
