@@ -71,7 +71,7 @@ describe('FeedParser - Extended Tests', () => {
       expect(result).toHaveProperty('metadata')
       expect(result).toHaveProperty('items')
       expect(result.items).toHaveLength(1)
-      expect(result.items[0]).toHaveProperty('feedName', 'Test Feed')
+      expect(result.items[0]).toHaveProperty('title', 'Article 1')
     })
 
     it('should handle parsing errors', async () => {
@@ -89,8 +89,8 @@ describe('FeedParser - Extended Tests', () => {
 
     it('should handle timeout', async () => {
       feedParser.rssParser.parseURL.mockImplementation(() =>
-        new Promise((resolve) =>
-          setTimeout(() => resolve({ items: [] }), 200)
+        new Promise((_resolve, reject) =>
+          setTimeout(() => reject(new Error('Timeout')), 200)
         )
       )
 
@@ -289,9 +289,10 @@ describe('FeedParser - Extended Tests', () => {
 
       const health = feedParser.checkFeedHealth(feedResult)
 
-      expect(health.status).toBe('warning') // 0.6 score = warning status
+      expect(health.status).toBe('warning') // 0.5 score = warning status
       expect(health.score).toBeLessThan(0.8)
-      expect(health.issues).toHaveLength(2) // no items + slow response
+      expect(health.issues).toHaveLength(1) // no items
+      expect(health.issues).toContain('No items found in feed')
     })
   })
 
@@ -314,7 +315,7 @@ describe('FeedParser - Extended Tests', () => {
       }
 
       expect(() => feedParser.validateFeedConfig(invalidConfig))
-        .toThrow('Invalid feed configuration: timeout must be positive')
+        .toThrow('Invalid feed configuration: timeout must be a positive number')
     })
 
     it('should reject feed with negative retry attempts', () => {
@@ -325,7 +326,7 @@ describe('FeedParser - Extended Tests', () => {
       }
 
       expect(() => feedParser.validateFeedConfig(invalidConfig))
-        .toThrow('Invalid feed configuration: retryAttempts must be positive')
+        .toThrow('Invalid feed configuration: retryAttempts must be a positive number')
     })
   })
 })

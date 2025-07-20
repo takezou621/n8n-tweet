@@ -4,6 +4,8 @@
  */
 
 const winston = require('winston')
+const Parser = require('rss-parser')
+const fs = require('fs').promises
 
 class FeedParser {
   constructor (config = {}) {
@@ -12,10 +14,18 @@ class FeedParser {
       maxRetries: 3,
       retryDelay: 1000,
       logLevel: 'info',
+      retryAttempts: 2,
       ...config
     }
 
     this.initializeLogger()
+    this.rssParser = new Parser({
+      timeout: this.config.timeout,
+      maxRedirects: 5,
+      headers: {
+        'User-Agent': this.config.userAgent || 'n8n-tweet-bot/1.0.0'
+      }
+    })
   }
 
   initializeLogger () {
@@ -121,11 +131,11 @@ class FeedParser {
         return result
       } catch (error) {
         lastError = error
-        this.logger.warn('Feed parse attempt failed', {
+        this.logger.warn('Feed parsing failed', {
           feedName: feedConfig.name,
           attempt,
           maxRetries,
-          error: error.message
+          error
         })
 
         if (attempt < maxRetries) {
@@ -141,30 +151,220 @@ class FeedParser {
   /**
    * 単一フィードを解析
    */
-  async parseFeed (feed) {
-    // 基本的なバリデーション
-    if (!feed || !feed.url) {
-      throw new Error('Invalid feed configuration')
+  async parseFeed (feedConfig) {
+    try {
+      // バリデーション
+      if (!feedConfig || !feedConfig.url) {
+        throw new Error('Invalid feed configuration')
+      }
+
+      this.logger.debug('Parsing RSS feed', {
+        feedName: feedConfig.name,
+        url: feedConfig.url
+      })
+
+      // 実際のRSSフィードを解析
+      const feed = await this.rssParser.parseURL(feedConfig.url)
+
+      // メタデータと記事アイテムを整形
+      const result = {
+        metadata: {
+          title: feed.title || feedConfig.name || 'RSS Feed',
+          description: feed.description || `Feed from ${feedConfig.url}`,
+          feedUrl: feedConfig.url,
+          lastBuildDate: feed.lastBuildDate,
+          link: feed.link
+        },
+        items: feed.items.map(item => ({
+          title: item.title,
+          description: item.contentSnippet || item.content || item.summary,
+          link: item.link || item.url,
+          pubDate: item.pubDate || item.isoDate,
+          guid: item.guid || item.id,
+          categories: item.categories || [],
+          author: item.creator || item.author
+        })),
+        success: true
+      }
+
+      this.logger.info('RSS feed parsed successfully', {
+        feedName: feedConfig.name,
+        itemCount: result.items.length
+      })
+
+      return result
+    } catch (error) {
+      this.logger.error('Failed to parse RSS feed', {
+        feedName: feedConfig.name,
+        url: feedConfig.url,
+        error: error.message
+      })
+
+      throw new Error(`Failed to parse RSS feed: ${error.message}`)
+    }
+  }
+
+  /**
+   * RSS設定ファイルを読み込む
+   */
+  async loadFeedConfig (configPath) {
+    try {
+      const configData = await fs.readFile(configPath, 'utf8')
+      const config = JSON.parse(configData)
+
+      this.logger.info('Feed configuration loaded successfully', {
+        feedCount: config.feeds?.length || 0,
+        configPath
+      })
+
+      return config
+    } catch (error) {
+      this.logger.error('Failed to load feed configuration', {
+        configPath,
+        error: error.message
+      })
+      throw new Error(`Failed to load feed configuration: ${error.message}`)
+    }
+  }
+
+  /**
+   * フィード設定を検証
+   */
+  validateFeedConfig (feedConfig) {
+    if (!feedConfig || typeof feedConfig !== 'object') {
+      throw new Error('Invalid feed configuration: must be an object')
     }
 
-    // モック実装 - 実際のRSSパーサーは後で実装
+    if (!feedConfig.name || typeof feedConfig.name !== 'string' || feedConfig.name.trim() === '') {
+      throw new Error('Invalid feed configuration: name is required')
+    }
+
+    if (!feedConfig.url || typeof feedConfig.url !== 'string' || feedConfig.url.trim() === '') {
+      throw new Error('Invalid feed configuration: url is required')
+    }
+
+    // URL形式の簡単な検証
+    try {
+      const url = new URL(feedConfig.url)
+      // URL検証のために使用
+      if (!url.protocol) {
+        throw new Error('Invalid protocol')
+      }
+    } catch {
+      throw new Error('Invalid feed configuration: invalid URL format')
+    }
+
+    if (feedConfig.timeout !== undefined &&
+        (typeof feedConfig.timeout !== 'number' || feedConfig.timeout < 0)) {
+      throw new Error('Invalid feed configuration: timeout must be a positive number')
+    }
+
+    if (feedConfig.retryAttempts !== undefined &&
+        (typeof feedConfig.retryAttempts !== 'number' || feedConfig.retryAttempts < 0)) {
+      throw new Error('Invalid feed configuration: retryAttempts must be a positive number')
+    }
+
+    return true
+  }
+
+  /**
+   * フィードアイテムを追加メタデータで強化
+   */
+  enrichFeedItems (items, feedConfig) {
+    return items.map(item => {
+      const text = `${item.title || ''} ${item.description || ''}`.trim()
+      const wordCount = text.split(/\s+/).filter(word => word.length > 0).length
+      const estimatedReadTime = Math.max(1, Math.ceil(wordCount / 200)) // 200 words per minute
+
+      return {
+        ...item,
+        feedName: feedConfig.name,
+        category: feedConfig.category,
+        priority: feedConfig.priority,
+        processedAt: new Date().toISOString(),
+        wordCount,
+        estimatedReadTime
+      }
+    })
+  }
+
+  /**
+   * 文字数カウント
+   */
+  calculateWordCount (text) {
+    if (!text || typeof text !== 'string') {
+      return 0
+    }
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length
+  }
+
+  /**
+   * 指定時間待機
+   */
+  async delay (ms) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  /**
+   * カテゴリ情報を取得
+   */
+  getCategoryInfo (config, categoryName) {
+    const categories = config.categories || {}
+    const category = categories[categoryName]
+
+    if (category) {
+      return category
+    }
+
+    // デフォルトカテゴリを返す
     return {
-      metadata: {
-        title: feed.name || 'RSS Feed',
-        description: `Feed from ${feed.url}`,
-        feedUrl: feed.url
-      },
-      items: [
-        {
-          title: `Sample article from ${feed.name || feed.url}`,
-          url: `${feed.url}#article1`,
-          description: 'Sample description',
-          publishedDate: new Date().toISOString(),
-          source: feed.name || feed.url,
-          categories: ['AI', 'Technology']
-        }
-      ],
-      success: true
+      weight: 0.5,
+      keywords: ['ai', 'technology'],
+      hashtagPrefix: '#AI'
+    }
+  }
+
+  /**
+   * フィードの健全性をチェック
+   */
+  checkFeedHealth (feedResult) {
+    const issues = []
+    let score = 1.0
+
+    // アイテム数をチェック
+    if (!feedResult.items || feedResult.items.length === 0) {
+      issues.push('No items found in feed')
+      score -= 0.5
+    }
+
+    // 最新コンテンツのチェック (30日以内)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const hasRecentContent = feedResult.items?.some(item => {
+      if (!item.pubDate) return false
+      const itemDate = new Date(item.pubDate)
+      return itemDate > thirtyDaysAgo
+    })
+
+    if (!hasRecentContent && feedResult.items?.length > 0) {
+      issues.push('No recent content (older than 30 days)')
+      score -= 0.3
+    }
+
+    // スコアに基づくステータス決定
+    let status = 'healthy'
+    if (score < 0.8) {
+      status = 'warning'
+    }
+    if (score < 0.3) {
+      status = 'critical'
+    }
+
+    return {
+      status,
+      score,
+      issues
     }
   }
 
