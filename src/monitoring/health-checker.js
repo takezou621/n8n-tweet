@@ -17,7 +17,7 @@ class HealthChecker {
     this.config = {
       // デフォルト設定
       checkInterval: 300000, // 5分
-      healthThreshold: process.env.NODE_ENV === 'test' ? 0.9 : 0.8, // テスト時は90%
+      healthThreshold: 0.8, // 80%
       alertThreshold: 0.5, // 50%以下でアラート
       maxHistory: 1000,
       enableAlerts: true,
@@ -231,7 +231,7 @@ class HealthChecker {
 
     const overallHealth = {
       overall: {
-        status: this.determineOverallStatus(healthScore),
+        status: this.determineOverallStatus(healthScore, totalCount),
         score: healthScore,
         totalComponents: totalCount,
         healthyComponents: healthyCount,
@@ -249,8 +249,8 @@ class HealthChecker {
     await this.checkAlerts(overallHealth)
 
     this.logger.info('Health check completed', {
-      status: overallHealth.status,
-      score: overallHealth.score,
+      status: overallHealth.overall.status,
+      score: overallHealth.overall.score,
       duration: overallHealth.checkDuration
     })
 
@@ -260,7 +260,12 @@ class HealthChecker {
   /**
    * 全体ステータスを判定
    */
-  determineOverallStatus (score) {
+  determineOverallStatus (score, totalComponents = 0) {
+    // コンポーネントがない場合は健全とみなす
+    if (totalComponents === 0) {
+      return 'healthy'
+    }
+
     if (score >= this.config.healthThreshold) {
       return 'healthy'
     } else if (score >= this.config.alertThreshold) {
@@ -350,15 +355,17 @@ class HealthChecker {
         averageScore: 0,
         uptimePercentage: 0,
         incidentCount: 0,
-        lastCheck: null
+        lastCheck: null,
+        totalChecks: 0
       }
     }
 
-    const averageScore = recentHistory.reduce((sum, h) => sum + h.score, 0) / recentHistory.length
-    const healthyChecks = recentHistory.filter(h => h.status === 'healthy').length
+    const averageScore = recentHistory.reduce((sum, h) => sum + h.overall.score, 0) /
+      recentHistory.length
+    const healthyChecks = recentHistory.filter(h => h.overall.status === 'healthy').length
     const uptimePercentage = healthyChecks / recentHistory.length
 
-    const incidentCount = recentHistory.filter(h => h.status === 'unhealthy').length
+    const incidentCount = recentHistory.filter(h => h.overall.status === 'unhealthy').length
 
     return {
       averageScore: Math.round(averageScore * 100) / 100,
