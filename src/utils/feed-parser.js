@@ -218,7 +218,12 @@ class FeedParser {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        return await this.parseFeed(feedConfig)
+        const result = await this.parseFeed(feedConfig)
+        // Ensure success property is set for successful results
+        return {
+          success: true,
+          ...result
+        }
       } catch (error) {
         lastError = error
 
@@ -242,7 +247,23 @@ class FeedParser {
       error: lastError
     })
 
-    throw new Error(`Max retry attempts exceeded: ${lastError.message}`)
+    // Return failure result instead of throwing
+    return {
+      success: false,
+      error: `Max retry attempts exceeded: ${lastError.message}`,
+      feedName: feedConfig.name,
+      url: feedConfig.url,
+      articles: []
+    }
+  }
+
+  /**
+   * 複数のフィードを並行処理で解析する (parseFeeds alias)
+   * @param {Array} feedConfigs - フィード設定配列
+   * @returns {Promise<Array>} 解析結果配列
+   */
+  async parseFeeds (feedConfigs) {
+    return this.parseMultipleFeeds(feedConfigs)
   }
 
   /**
@@ -266,30 +287,53 @@ class FeedParser {
           await this.delay(this.config.rateLimitDelay * index)
         }
 
-        return await this.parseWithRetry(feedConfig)
+        const result = await this.parseWithRetry(feedConfig)
+        return result
       } catch (error) {
         this.logger.error('Individual feed parsing failed', {
           feedName: feedConfig.name,
           error: error.message
         })
-        return null // Return null for failed feeds, filter out later
+        // parseWithRetry should now always return an object with success property
+        // This should not be reached, but as a fallback:
+        return {
+          success: false,
+          error: error.message,
+          feedName: feedConfig.name,
+          url: feedConfig.url,
+          articles: []
+        }
       }
     })
 
     const results = await Promise.allSettled(parsePromises)
 
-    // Filter successful results
-    const successfulResults = results
-      .filter(result => result.status === 'fulfilled' && result.value !== null)
-      .map(result => result.value)
+    // Process all results including failures for integration tests
+    const allResults = results.map((result, index) => {
+      const feedConfig = enabledFeeds[index]
+
+      if (result.status === 'fulfilled' && result.value) {
+        // parseWithRetry now always returns an object with success property
+        return result.value
+      } else {
+        // Promise rejection or unexpected null
+        return {
+          success: false,
+          error: result.reason?.message || 'Feed parsing failed',
+          feedName: feedConfig.name,
+          url: feedConfig.url,
+          articles: []
+        }
+      }
+    })
 
     this.logger.info('Multiple feed parsing completed', {
       totalRequested: enabledFeeds.length,
-      successful: successfulResults.length,
-      failed: enabledFeeds.length - successfulResults.length
+      successful: allResults.filter(r => r.success).length,
+      failed: allResults.filter(r => !r.success).length
     })
 
-    return successfulResults
+    return allResults
   }
 
   /**

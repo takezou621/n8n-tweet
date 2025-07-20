@@ -82,6 +82,16 @@ class TweetGenerator {
   }
 
   /**
+   * 単一のアイテムからツイートを生成 (integration test用エイリアス)
+   * @param {Object} item - ツイート生成対象アイテム
+   * @param {Object} categories - カテゴリ設定
+   * @returns {Promise<Object>} 生成されたツイート
+   */
+  async generateTweet (item, categories = {}) {
+    return this.generateSingleTweet(item, categories)
+  }
+
+  /**
    * 複数のアイテムからツイートを生成
    * @param {Array} items - ツイート生成対象アイテム配列
    * @param {Object} categories - カテゴリ設定
