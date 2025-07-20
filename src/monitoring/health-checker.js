@@ -274,7 +274,9 @@ class HealthChecker {
       // 性能劣化をチェック
       await this.sendAlert({
         type: 'warning',
-        message: `System performance degraded: health score ${(healthData.score * 100).toFixed(1)}%`,
+        message: `System performance degraded: health score ${
+          (healthData.score * 100).toFixed(1)
+        }%`,
         score: healthData.score,
         timestamp: healthData.timestamp
       })

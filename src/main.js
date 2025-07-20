@@ -119,7 +119,11 @@ class MainApplication {
 
       // Send startup notification
       if (this.config.alerting.enabled) {
-        await alertingService.sendAlert('application_started', 'n8n-tweet application started successfully', 'info')
+        await alertingService.sendAlert(
+          'application_started',
+          'n8n-tweet application started successfully',
+          'info'
+        )
       }
     } catch (error) {
       logger.error('Failed to start main application:', error)

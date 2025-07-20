@@ -125,7 +125,7 @@ describe('End-to-End Integration Tests', () => {
               category: 'news'
             },
             {
-              title: 'Test Article 2', 
+              title: 'Test Article 2',
               description: 'Test description for article 2',
               link: 'https://example.com/article2',
               pubDate: new Date().toISOString(),
@@ -229,7 +229,7 @@ describe('End-to-End Integration Tests', () => {
           ]
         },
         {
-          feedName: 'tech-feed-2', 
+          feedName: 'tech-feed-2',
           articles: [
             { title: 'Tech Article 3', link: 'https://example.com/tech3', category: 'tech' }
           ]
