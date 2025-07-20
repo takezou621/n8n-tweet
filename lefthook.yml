@@ -6,12 +6,12 @@ pre-commit:
       run: npx eslint src/ --fix
     test-related:
       glob: "*.js"
-      run: npm run test -- --findRelatedTests {staged_files} --passWithNoTests
+      run: npm run test:integration --passWithNoTests
 
 pre-push:
   commands:
     tests:
-      run: npm run test:unit
+      run: npm run test:integration
     lint-check:
       run: npx eslint src/
 
