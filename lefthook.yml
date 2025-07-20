@@ -2,8 +2,8 @@ pre-commit:
   parallel: true
   commands:
     lint:
-      glob: "*.js"
-      run: npm run lint:fix {staged_files}
+      glob: "src/**/*.js"
+      run: npx eslint src/ --fix
     test-related:
       glob: "*.js"
       run: npm run test -- --findRelatedTests {staged_files} --passWithNoTests
