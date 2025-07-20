@@ -1,6 +1,6 @@
 /**
  * n8n-tweet Dashboard API Server
- * 
+ *
  * REST API endpoints for monitoring and managing the n8n-tweet system
  * - Health checks
  * - Metrics collection
@@ -52,7 +52,7 @@ class DashboardServer {
    */
   initializeLogger () {
     const logLevel = process.env.LOG_LEVEL || 'info'
-    
+
     this.logger = winston.createLogger({
       level: logLevel,
       format: winston.format.combine(
@@ -119,7 +119,7 @@ class DashboardServer {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
           scriptSrc: ["'self'"],
-          imgSrc: ["'self'", "data:", "https:"]
+          imgSrc: ["'self'", 'data:', 'https:']
         }
       }
     }))
@@ -202,7 +202,7 @@ class DashboardServer {
   async getSystemHealth (req, res) {
     try {
       const health = await this.healthChecker.performHealthCheck()
-      
+
       res.json({
         status: 'success',
         data: health,
@@ -226,7 +226,7 @@ class DashboardServer {
     try {
       const { component } = req.params
       const health = await this.healthChecker.checkComponent(component)
-      
+
       if (!health) {
         return res.status(404).json({
           status: 'error',
@@ -241,9 +241,9 @@ class DashboardServer {
         timestamp: new Date().toISOString()
       })
     } catch (error) {
-      this.logger.error('Component health check failed', { 
+      this.logger.error('Component health check failed', {
         component: req.params.component,
-        error: error.message 
+        error: error.message
       })
       res.status(500).json({
         status: 'error',
@@ -261,7 +261,7 @@ class DashboardServer {
     try {
       const { timeRange = '1h' } = req.query
       const metrics = await this.metricsCollector.getMetrics(timeRange)
-      
+
       res.json({
         status: 'success',
         data: metrics,
@@ -286,7 +286,7 @@ class DashboardServer {
     try {
       const { period = 'last_24_hours' } = req.query
       const stats = await this.tweetHistory.getStatistics()
-      
+
       // Add additional statistics based on period
       const periodStats = {
         period,
@@ -297,7 +297,7 @@ class DashboardServer {
           cpu: process.cpuUsage()
         }
       }
-      
+
       res.json({
         status: 'success',
         data: periodStats,
@@ -338,7 +338,7 @@ class DashboardServer {
       }
 
       const tweets = await this.tweetHistory.getTweets(options)
-      
+
       res.json({
         status: 'success',
         data: tweets,
@@ -392,7 +392,7 @@ class DashboardServer {
           enabled: true
         }
       ]
-      
+
       res.json({
         status: 'success',
         data: feeds,
@@ -434,7 +434,7 @@ class DashboardServer {
     try {
       // Load tweet history
       await this.tweetHistory.loadHistory()
-      
+
       this.server = this.app.listen(this.config.port, this.config.host, () => {
         this.logger.info('Dashboard server started', {
           host: this.config.host,

@@ -2,7 +2,7 @@
 
 /**
  * n8n-tweet Dashboard Server Startup Script
- * 
+ *
  * Standalone script to start the dashboard API server
  */
 
@@ -33,7 +33,7 @@ const dashboard = new DashboardServer()
 // Graceful shutdown handler
 async function shutdown (signal) {
   logger.info(`${signal} received, shutting down gracefully...`)
-  
+
   try {
     if (dashboard) {
       await dashboard.stop()
@@ -50,17 +50,21 @@ async function shutdown (signal) {
 async function main () {
   try {
     logger.info('Starting n8n-tweet Dashboard Server...')
-    
+
     await dashboard.start()
-    
+
     logger.info('✅ Dashboard server is running')
-    logger.info(`🌐 API available at: http://localhost:${dashboard.config.port}${dashboard.config.apiPrefix}`)
-    logger.info(`📊 Health check: http://localhost:${dashboard.config.port}${dashboard.config.apiPrefix}/health`)
-    
+    logger.info(
+      `🌐 API available at: http://localhost:${dashboard.config.port}${dashboard.config.apiPrefix}`
+    )
+    logger.info(
+      `📊 Health check: http://localhost:${dashboard.config.port}` +
+      `${dashboard.config.apiPrefix}/health`
+    )
+
     // Register shutdown handlers
     process.on('SIGINT', () => shutdown('SIGINT'))
     process.on('SIGTERM', () => shutdown('SIGTERM'))
-    
   } catch (error) {
     logger.error('Failed to start dashboard server', { error: error.message })
     process.exit(1)
