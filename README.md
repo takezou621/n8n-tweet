@@ -44,39 +44,51 @@ RSSフィードからAI関連情報を自動収集し、Twitterに投稿する�
 - **Automation**: Custom CLI toolkit (`quick.sh`)
 - **Quality**: ESLint, テストカバレッジ85%以上
 
-## 🚀 **ワンクリック完全セットアップ** ⚡ NEW!
+## 🚀 **Docker Compose環境構築完了** ⚡ NEW!
 
-### 🎯 **超高速スタート (推奨)**
+### 🎯 **Docker環境でのセットアップ**
 
-**たった3コマンドで本番運用開始！**
+**Docker Composeを使用した本格的な開発環境！**
 
 ```bash
 # 1. リポジトリクローン
 git clone https://github.com/takezou621/n8n-tweet.git && cd n8n-tweet
 
-# 2. ワンクリック完全自動セットアップ 🚀
-./quick.sh test
+# 2. 環境変数の設定
+cp .env.example .env
+# .envファイルを編集してTwitter API認証情報などを設定
 
-# 3. ブラウザでn8nダッシュボードアクセス
-./quick.sh open
-# または http://localhost:5678 (admin@n8n-tweet.local / Admin123!)
+# 3. Docker Compose で全サービス起動
+docker-compose up -d
+
+# 4. ブラウザでn8nダッシュボードアクセス
+open http://localhost:5678
+# Basic認証: admin / changeme123 (デフォルト)
 ```
 
-**🎉 これだけで完了！** 以下がすべて自動実行されます：
+**🎉 これだけで完了！** 以下が構築されます：
 - ✅ Docker環境構築 (PostgreSQL + Redis + n8n)
-- ✅ オーナーアカウント自動作成
-- ✅ ログイン認証
-- ✅ ワークフローインポート
-- ✅ **ワークフロー自動アクティブ化** ⚡
-- ✅ スケジュール設定 (朝6時・昼12時・夕18時)
+- ✅ n8n ワークフローエンジン (ポート5678)
+- ✅ PostgreSQL データベース (永続化)
+- ✅ Redis キャッシュサーバー (永続化)
+- ✅ ヘルスチェック機能
+- ✅ ネットワーク分離とセキュリティ設定
 
-### 🔧 **手動設定 (最小限)**
+### 🔧 **追加設定**
 
-自動セットアップ後、以下のみ手動で設定：
+Docker Compose起動後の設定手順：
 
-1. **Twitter API認証情報設定** 🔑
-2. **RSSフィード調整** (必要に応じて) 📡
+1. **環境変数設定** 🔑
+   - `.env`ファイルでTwitter API認証情報を設定
+   - データベース・Redis接続情報の調整
+
+2. **n8n初期設定** 📡
+   - n8nダッシュボードでワークフローインポート
+   - スケジュール設定とアクティブ化
+
 3. **動作確認** ✅
+   - サービス稼働状況の確認
+   - テスト実行
 
 ## 🛠️ **quick.sh コマンドスイート** ⚡ NEW!
 
