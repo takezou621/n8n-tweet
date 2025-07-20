@@ -1,0 +1,273 @@
+{
+  "description": "テスト環境設定ファイル - CI/CDテスト用の軽量設定",
+  "version": "1.0.0",
+  "environment": "test",
+  "server": {
+    "port": 5678,
+    "host": "localhost",
+    "timezone": "UTC",
+    "workers": 1,
+    "clustering": false,
+    "maxMemory": "512MB",
+    "gracefulShutdownTimeout": 5000
+  },
+  "logging": {
+    "level": "error",
+    "enableConsole": false,
+    "enableFile": false,
+    "enableRemoteLogging": false,
+    "enableMetrics": false,
+    "enableAudit": false,
+    "sanitizeOutput": true
+  },
+  "monitoring": {
+    "enableHealthCheck": false,
+    "enableMetrics": false,
+    "enablePerformanceMonitoring": false,
+    "enableAlerts": false,
+    "healthCheckInterval": 60000,
+    "metricsCollectionInterval": 30000
+  },
+  "rss": {
+    "enabled": true,
+    "fetchInterval": 900000,
+    "batchSize": 5,
+    "timeout": 10000,
+    "retryAttempts": 1,
+    "retryDelay": 1000,
+    "concurrentFeeds": 2,
+    "enableCache": false,
+    "cacheExpiry": 3600000,
+    "validateSSL": false,
+    "userAgent": "n8n-tweet-test/1.0.0"
+  },
+  "filtering": {
+    "enabled": true,
+    "aiRelevanceThreshold": 0.5,
+    "duplicateCheckEnabled": false,
+    "duplicateThreshold": 0.8,
+    "contentMinLength": 50,
+    "contentMaxLength": 1000,
+    "blacklistEnabled": false,
+    "whitelistEnabled": false,
+    "languageFilter": ["en"],
+    "qualityScoreThreshold": 0.3
+  },
+  "tweetGeneration": {
+    "enabled": true,
+    "maxLength": 280,
+    "hashtagLimit": 3,
+    "enableEmojis": false,
+    "enableMentions": false,
+    "templates": {
+      "useRotation": false,
+      "fallbackTemplate": "Test: {{title}} {{url}}"
+    },
+    "optimization": {
+      "enableUrlShortening": false,
+      "enableHashtagOptimization": false,
+      "enableEngagementOptimization": false
+    }
+  },
+  "twitter": {
+    "enabled": false,
+    "dryRun": true,
+    "rateLimiting": {
+      "enabled": false,
+      "tweetsPerHour": 10,
+      "tweetsPerDay": 50,
+      "tweetsPerMonth": 1000,
+      "bufferPercentage": 50
+    },
+    "retry": {
+      "maxAttempts": 1,
+      "baseDelay": 1000,
+      "maxDelay": 5000,
+      "exponentialBackoff": false
+    },
+    "posting": {
+      "minInterval": 1000,
+      "maxDailyTweets": 5,
+      "quietHours": {
+        "enabled": false,
+        "start": "23:00",
+        "end": "06:00",
+        "timezone": "UTC"
+      },
+      "scheduling": {
+        "enabled": false,
+        "optimalTimes": [],
+        "avoidWeekends": false
+      }
+    }
+  },
+  "storage": {
+    "tweetHistory": {
+      "enabled": true,
+      "storageType": "memory",
+      "encryptionEnabled": false,
+      "backupEnabled": false,
+      "retentionDays": 1,
+      "cleanupInterval": 3600000
+    },
+    "cache": {
+      "enabled": false,
+      "type": "memory",
+      "host": "localhost",
+      "port": 6379,
+      "database": 0,
+      "keyPrefix": "n8n-tweet-test:",
+      "defaultTTL": 300,
+      "maxMemory": "50mb",
+      "evictionPolicy": "allkeys-lru"
+    }
+  },
+  "security": {
+    "enableEncryption": false,
+    "enableInputValidation": true,
+    "enableOutputSanitization": true,
+    "enableRateLimiting": false,
+    "enableSecurityHeaders": false,
+    "cors": {
+      "enabled": false,
+      "origin": [],
+      "credentials": false
+    },
+    "apiKeys": {
+      "rotationEnabled": false,
+      "rotationInterval": 86400000
+    },
+    "audit": {
+      "enabled": false,
+      "logLevel": "error",
+      "includeSensitiveData": false,
+      "retentionDays": 1
+    }
+  },
+  "performance": {
+    "enableCompression": false,
+    "enableCaching": false,
+    "enableBatching": false,
+    "enableConnectionPooling": false,
+    "requestTimeout": 5000,
+    "maxConcurrentRequests": 10,
+    "memoryLimit": "512MB",
+    "gcOptimization": false
+  },
+  "backup": {
+    "enabled": false,
+    "schedule": "",
+    "retention": {
+      "daily": 1,
+      "weekly": 0,
+      "monthly": 0
+    },
+    "storage": {
+      "type": "memory",
+      "path": "/tmp/test-backups",
+      "compression": false,
+      "encryption": false
+    },
+    "verify": {
+      "enabled": false,
+      "checksumValidation": false
+    }
+  },
+  "deployment": {
+    "strategy": "test",
+    "healthCheckTimeout": 5000,
+    "gracefulShutdown": false,
+    "zeroDowntime": false,
+    "rollbackEnabled": false,
+    "autoScaling": {
+      "enabled": false,
+      "minInstances": 1,
+      "maxInstances": 1,
+      "targetCPU": 90,
+      "targetMemory": 90
+    }
+  },
+  "alerting": {
+    "enabled": false,
+    "channels": {
+      "email": {
+        "enabled": false,
+        "recipients": []
+      },
+      "slack": {
+        "enabled": false,
+        "webhook": "",
+        "channel": ""
+      },
+      "webhook": {
+        "enabled": false,
+        "url": "",
+        "timeout": 1000
+      }
+    },
+    "rules": {}
+  },
+  "maintenance": {
+    "enableMaintenanceMode": false,
+    "maintenanceMessage": "Test mode",
+    "scheduledMaintenance": {
+      "enabled": false,
+      "schedule": "",
+      "duration": 0,
+      "preNotification": 0
+    },
+    "autoUpdates": {
+      "enabled": false,
+      "schedule": "",
+      "backupBeforeUpdate": false,
+      "rollbackOnFailure": false
+    }
+  },
+  "compliance": {
+    "dataRetention": {
+      "personalData": 1,
+      "systemLogs": 1,
+      "auditLogs": 1,
+      "performanceMetrics": 1
+    },
+    "privacy": {
+      "enableAnonymization": true,
+      "enableDataMinimization": true,
+      "enableConsentManagement": false
+    },
+    "regulations": {
+      "gdprCompliance": false,
+      "ccpaCompliance": false,
+      "coppaCompliance": false
+    }
+  },
+  "integration": {
+    "n8n": {
+      "enabled": false,
+      "host": "localhost",
+      "port": 5678,
+      "protocol": "http",
+      "authentication": {
+        "type": "none",
+        "username": "",
+        "password": ""
+      },
+      "webhook": {
+        "enabled": false,
+        "baseUrl": "http://localhost:5678/webhook",
+        "authentication": false
+      }
+    },
+    "webhooks": {
+      "enabled": false,
+      "endpoints": []
+    }
+  },
+  "development": {
+    "enableDebugMode": true,
+    "enableVerboseLogging": false,
+    "enableProfiler": false,
+    "enableTestEndpoints": true,
+    "enableMockMode": true
+  }
+}

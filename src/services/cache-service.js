@@ -7,6 +7,12 @@ class CacheService {
     this.client = null
     this.isConnected = false
     this.config = config.cache
+
+    // Use test config if in test environment
+    if (process.env.NODE_ENV === 'test') {
+      const testConfig = require('../../config/test.json')
+      this.config = testConfig.cache
+    }
   }
 
   async connect () {
