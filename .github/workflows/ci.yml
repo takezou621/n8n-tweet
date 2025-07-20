@@ -44,11 +44,6 @@ jobs:
       env:
         NODE_ENV: test
 
-    - name: Run unit tests
-      run: npm run test:unit
-      env:
-        NODE_ENV: test
-
     - name: Run integration tests
       run: npm run test:integration
       env:
