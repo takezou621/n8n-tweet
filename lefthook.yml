@@ -13,7 +13,7 @@ pre-push:
     tests:
       run: npm run test:unit
     lint-check:
-      run: npm run lint -- src/
+      run: npx eslint src/
 
 commit-msg:
   commands:
