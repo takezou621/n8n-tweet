@@ -160,7 +160,7 @@ class DuplicateChecker {
     const normalizedTitle = this.normalizeTitle(item.title)
 
     // Check against cached titles
-    for (const [cachedId, cachedItem] of this.seenItems) {
+    for (const [, cachedItem] of this.seenItems) {
       if (cachedItem.title) {
         const cachedNormalizedTitle = this.normalizeTitle(cachedItem.title)
         const similarity = this.calculateStringSimilarity(normalizedTitle, cachedNormalizedTitle)
@@ -230,7 +230,9 @@ class DuplicateChecker {
       const urlObj = new URL(url)
 
       // Remove common tracking parameters
-      const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'ref', 'source']
+      const trackingParams = [
+        'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'ref', 'source'
+      ]
       trackingParams.forEach(param => urlObj.searchParams.delete(param))
 
       // Remove fragment

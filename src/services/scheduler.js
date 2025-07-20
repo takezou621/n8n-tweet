@@ -240,9 +240,6 @@ class Scheduler {
   }
 
   async performCleanup () {
-    const fs = require('fs').promises
-    const path = require('path')
-
     const cleanupTasks = [
       this.cleanupOldLogs(),
       this.cleanupOldMetrics(),

@@ -11,7 +11,6 @@
 
 const winston = require('winston')
 const fs = require('fs').promises
-const path = require('path')
 
 class HealthChecker {
   constructor (config = {}) {
@@ -105,7 +104,7 @@ class HealthChecker {
       if (typeof component.instance?.healthCheck === 'function') {
         const result = await Promise.race([
           component.instance.healthCheck(),
-          new Promise((_, reject) =>
+          new Promise((_resolve, reject) =>
             setTimeout(() => reject(new Error('Health check timeout')), 10000)
           )
         ])
@@ -113,9 +112,8 @@ class HealthChecker {
         status = result.status || 'healthy'
         metrics = result.metrics || {}
         error = result.error || null
-      }
-      // 基本的な存在チェック
-      else if (component.instance) {
+      } else if (component.instance) {
+        // 基本的な存在チェック
         status = 'healthy'
         metrics = { available: true }
       } else {
@@ -272,10 +270,8 @@ class HealthChecker {
         failedComponents: criticalIssues.map(c => c.name),
         timestamp: healthData.timestamp
       })
-    }
-
-    // 性能劣化をチェック
-    else if (healthData.status === 'degraded') {
+    } else if (healthData.status === 'degraded') {
+      // 性能劣化をチェック
       await this.sendAlert({
         type: 'warning',
         message: `System performance degraded: health score ${(healthData.score * 100).toFixed(1)}%`,

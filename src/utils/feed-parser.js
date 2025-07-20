@@ -93,7 +93,8 @@ class FeedParser {
 
     // URL format validation
     try {
-      new URL(feedConfig.url)
+      const url = new URL(feedConfig.url)
+      if (!url) throw new Error('Invalid URL')
     } catch (error) {
       throw new Error('Invalid feed configuration: invalid URL format')
     }
@@ -125,7 +126,7 @@ class FeedParser {
       const startTime = Date.now()
 
       // Set timeout for this specific feed
-      const timeoutPromise = new Promise((_, reject) => {
+      const timeoutPromise = new Promise((_resolve, reject) => {
         setTimeout(() => {
           reject(new Error('Feed parsing timeout'))
         }, feedConfig.timeout || this.config.timeout)

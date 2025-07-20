@@ -399,7 +399,7 @@ if (require.main === module) {
   app.handleCommand(command, args)
     .then((result) => {
       if (result && command !== 'start') {
-        console.log(JSON.stringify(result, null, 2))
+        logger.info('Application result:', result)
       }
       if (command !== 'start') {
         process.exit(0)
@@ -407,7 +407,7 @@ if (require.main === module) {
     })
     .catch((error) => {
       logger.error(`Command '${command}' failed:`, error)
-      console.error(`Error: ${error.message}`)
+      logger.error('Application error:', error.message)
       process.exit(1)
     })
 }

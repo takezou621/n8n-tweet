@@ -49,7 +49,8 @@ class UrlShortener {
   }
 
   async shortenWithTinyUrl (longUrl) {
-    const response = await axios.get(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`, {
+    const apiUrl = `https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`
+    const response = await axios.get(apiUrl, {
       timeout: 5000
     })
 
@@ -188,15 +189,17 @@ class UrlShortener {
 
   async validateUrl (url) {
     try {
-      new URL(url)
-      return true
+      const parsedUrl = new URL(url)
+      return Boolean(parsedUrl)
     } catch {
       return false
     }
   }
 
   async shortenUrlsInText (text) {
-    const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g
+    const urlPattern = 'https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b'
+    const pathPattern = '([-a-zA-Z0-9()@:%_+.~#?&//=]*)'
+    const urlRegex = new RegExp(urlPattern + pathPattern, 'g')
     const urls = text.match(urlRegex)
 
     if (!urls) {
