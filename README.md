@@ -25,6 +25,7 @@ RSSフィードからAI関連情報を自動収集し、Twitterに投稿する�
 - ✅ 💾 **ツイート履歴管理** - 重複検出、統計分析
 - ✅ 🚀 **Docker & GitHub Actionsによる自動デプロイ** - CI/CD完全対応
 - ✅ 🔄 **n8nワークフロー統合** - 完全な自動化ワークフロー
+- ✅ 🎯 **ダッシュボードAPI** - REST APIによるメトリクス・統計情報提供
 
 ### 📊 最終テスト結果
 - **自動化システム**: ✅ 100% (5/5) ⚡ **NEW!**
@@ -184,7 +185,8 @@ n8n-tweet/
 │   ├── 📝 generators/
 │   ├── 🐦 integrations/
 │   ├── 💾 storage/
-│   └── 📊 monitoring/
+│   ├── 📊 monitoring/
+│   └── 🎯 dashboard/                # ダッシュボードAPIサーバー
 ├── 🧪 tests/
 │   ├── 🔬 unit/
 │   ├── 🔗 integration/
@@ -330,6 +332,37 @@ n8n-tweet/
 ./scripts/backup-workflows.sh # バックアップ  
 ./scripts/restore-workflows.sh # 復旧
 tail -f logs/app.log          # ログ確認
+```
+
+## 🎯 **ダッシュボード機能** NEW!
+
+### 📊 REST APIエンドポイント
+
+**ベースURL**: `http://localhost:3001/api/v1`
+
+| エンドポイント | メソッド | 説明 |
+|----------------|----------|------|
+| `/health` | GET | システム全体のヘルスチェック |
+| `/health/{component}` | GET | 個別コンポーネントのヘルス状態 |
+| `/metrics` | GET | システムメトリクス取得（CPU、メモリ、ツイート数等） |
+| `/statistics` | GET | 統計情報（成功率、カテゴリ別分析等） |
+| `/tweets` | GET | ツイート履歴一覧（フィルタ・ページング対応） |
+| `/feeds` | GET | RSSフィード一覧と状態 |
+
+### 🎨 使用例
+
+```bash
+# ヘルスチェック
+curl http://localhost:3001/api/v1/health
+
+# メトリクス取得（過去24時間）
+curl "http://localhost:3001/api/v1/metrics?timeRange=24h"
+
+# ツイート履歴（最新100件）
+curl "http://localhost:3001/api/v1/tweets?limit=100"
+
+# 統計情報（過去30日）
+curl "http://localhost:3001/api/v1/statistics?period=last_30_days"
 ```
 
 ## 🎉 **プロジェクト完成成果** 🏆
