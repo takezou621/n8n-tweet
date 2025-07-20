@@ -140,22 +140,38 @@ class Logger {
       'authorization', 'auth', 'key', 'access_token'
     ]
 
-    const sanitized = { ...data }
+    const visited = new WeakSet()
 
     const sanitizeObject = (obj) => {
+      // 循環参照をチェック
+      if (visited.has(obj)) {
+        return '[CIRCULAR]'
+      }
+      visited.add(obj)
+
+      const sanitized = Array.isArray(obj) ? [] : {}
+
       for (const [key, value] of Object.entries(obj)) {
         const lowerKey = key.toLowerCase()
 
         if (sensitiveFields.some(field => lowerKey.includes(field))) {
-          obj[key] = '[REDACTED]'
+          sanitized[key] = '[REDACTED]'
         } else if (typeof value === 'object' && value !== null) {
-          sanitizeObject(value)
+          sanitized[key] = sanitizeObject(value)
+        } else {
+          sanitized[key] = value
         }
       }
+
+      return sanitized
     }
 
-    sanitizeObject(sanitized)
-    return sanitized
+    try {
+      return sanitizeObject(data)
+    } catch (error) {
+      // サニタイズ中にエラーが発生した場合の安全策
+      return '[SANITIZATION_ERROR]'
+    }
   }
 
   /**
