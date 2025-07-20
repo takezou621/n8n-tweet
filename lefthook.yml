@@ -12,6 +12,8 @@ pre-push:
   commands:
     tests:
       run: npm test
+    lint-check:
+      run: npm run lint
 
 commit-msg:
   commands:
