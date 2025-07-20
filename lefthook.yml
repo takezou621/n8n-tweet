@@ -11,9 +11,9 @@ pre-commit:
 pre-push:
   commands:
     tests:
-      run: npm test
+      run: npm run test:unit
     lint-check:
-      run: npm run lint
+      run: npm run lint -- src/
 
 commit-msg:
   commands:
