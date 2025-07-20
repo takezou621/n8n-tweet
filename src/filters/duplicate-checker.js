@@ -1,7 +1,7 @@
 /**
  * Duplicate Checker
  * 重複記事の検出と除去
- * 
+ *
  * Features:
  * - URL重複検出
  * - タイトル類似度検出
@@ -17,7 +17,7 @@ class DuplicateChecker {
    * DuplicateChecker constructor
    * @param {Object} config - 重複チェック設定
    */
-  constructor(config = {}) {
+  constructor (config = {}) {
     this.config = {
       maxEntries: 50000,
       retentionHours: 24,
@@ -47,7 +47,7 @@ class DuplicateChecker {
     this.seenItems = new Map()
     this.urlCache = new Set()
     this.contentHashes = new Set()
-    
+
     // Cleanup interval
     this.setupCleanupInterval()
   }
@@ -57,10 +57,10 @@ class DuplicateChecker {
    * @param {Array} items - チェック対象アイテム配列
    * @returns {Promise<Array>} 重複除去後のアイテム配列
    */
-  async removeDuplicates(items) {
+  async removeDuplicates (items) {
     try {
       this.logger.info('Starting duplicate removal', { itemCount: items.length })
-      
+
       const uniqueItems = []
       const duplicateStats = {
         total: items.length,
@@ -73,7 +73,7 @@ class DuplicateChecker {
       for (const item of items) {
         try {
           const isDuplicate = await this.isDuplicate(item)
-          
+
           if (!isDuplicate) {
             // Add to cache
             await this.addToCache(item)
@@ -101,7 +101,7 @@ class DuplicateChecker {
       }
 
       this.logger.info('Duplicate removal completed', duplicateStats)
-      
+
       return uniqueItems
     } catch (error) {
       this.logger.error('Duplicate removal failed', { error: error.message })
@@ -114,36 +114,37 @@ class DuplicateChecker {
    * @param {Object} item - チェック対象アイテム
    * @returns {Promise<boolean>} 重複かどうか
    */
-  async isDuplicate(item) {
+  async isDuplicate (item) {
     // 1. URL duplicate check
     if (this.isUrlDuplicate(item)) {
       return true
     }
-    
+
     // 2. Title similarity check
     if (this.config.enableTitleSimilarity) {
       if (await this.isTitleSimilar(item)) {
         return true
       }
     }
-    
+
     // 3. Content hash check
     if (this.config.enableContentHashing) {
       if (this.isContentDuplicate(item)) {
         return true
       }
     }
-    
+
     return false
   }
+
   /**
    * URL重複をチェック
    * @param {Object} item - チェック対象アイテム
    * @returns {boolean} URL重複かどうか
    */
-  isUrlDuplicate(item) {
+  isUrlDuplicate (item) {
     if (!item.link) return false
-    
+
     const normalizedUrl = this.normalizeUrl(item.link)
     return this.urlCache.has(normalizedUrl)
   }
@@ -153,23 +154,23 @@ class DuplicateChecker {
    * @param {Object} item - チェック対象アイテム
    * @returns {Promise<boolean>} タイトル類似かどうか
    */
-  async isTitleSimilar(item) {
+  async isTitleSimilar (item) {
     if (!item.title) return false
-    
+
     const normalizedTitle = this.normalizeTitle(item.title)
-    
+
     // Check against cached titles
     for (const [cachedId, cachedItem] of this.seenItems) {
       if (cachedItem.title) {
         const cachedNormalizedTitle = this.normalizeTitle(cachedItem.title)
         const similarity = this.calculateStringSimilarity(normalizedTitle, cachedNormalizedTitle)
-        
+
         if (similarity >= this.config.similarityThreshold) {
           return true
         }
       }
     }
-    
+
     return false
   }
 
@@ -178,7 +179,7 @@ class DuplicateChecker {
    * @param {Object} item - チェック対象アイテム
    * @returns {boolean} コンテンツ重複かどうか
    */
-  isContentDuplicate(item) {
+  isContentDuplicate (item) {
     const contentHash = this.generateContentHash(item)
     return this.contentHashes.has(contentHash)
   }
@@ -188,29 +189,29 @@ class DuplicateChecker {
    * @param {Object} item - 追加するアイテム
    * @returns {Promise<void>}
    */
-  async addToCache(item) {
+  async addToCache (item) {
     const itemId = this.generateItemId(item)
     const cacheEntry = {
       ...item,
       addedAt: new Date().toISOString(),
       id: itemId
     }
-    
+
     // Add to seen items
     this.seenItems.set(itemId, cacheEntry)
-    
+
     // Add URL to cache
     if (item.link) {
       const normalizedUrl = this.normalizeUrl(item.link)
       this.urlCache.add(normalizedUrl)
     }
-    
+
     // Add content hash
     if (this.config.enableContentHashing) {
       const contentHash = this.generateContentHash(item)
       this.contentHashes.add(contentHash)
     }
-    
+
     // Cleanup if cache is too large
     if (this.seenItems.size > this.config.maxEntries) {
       this.cleanupOldEntries()
@@ -222,22 +223,22 @@ class DuplicateChecker {
    * @param {string} url - 正規化対象URL
    * @returns {string} 正規化されたURL
    */
-  normalizeUrl(url) {
+  normalizeUrl (url) {
     if (!url) return ''
-    
+
     try {
       const urlObj = new URL(url)
-      
+
       // Remove common tracking parameters
       const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'ref', 'source']
       trackingParams.forEach(param => urlObj.searchParams.delete(param))
-      
+
       // Remove fragment
       urlObj.hash = ''
-      
+
       // Normalize case
       urlObj.hostname = urlObj.hostname.toLowerCase()
-      
+
       return urlObj.toString()
     } catch (error) {
       // If URL parsing fails, return original
@@ -250,9 +251,9 @@ class DuplicateChecker {
    * @param {string} title - 正規化対象タイトル
    * @returns {string} 正規化されたタイトル
    */
-  normalizeTitle(title) {
+  normalizeTitle (title) {
     if (!title) return ''
-    
+
     return title
       .toLowerCase()
       .trim()
@@ -271,15 +272,15 @@ class DuplicateChecker {
    * @param {string} str2 - 文字列2
    * @returns {number} 類似度 (0-1)
    */
-  calculateStringSimilarity(str1, str2) {
+  calculateStringSimilarity (str1, str2) {
     if (!str1 || !str2) return 0
     if (str1 === str2) return 1
-    
+
     const longer = str1.length > str2.length ? str1 : str2
     const shorter = str1.length > str2.length ? str2 : str1
-    
+
     if (longer.length === 0) return 1
-    
+
     const editDistance = this.calculateLevenshteinDistance(longer, shorter)
     return (longer.length - editDistance) / longer.length
   }
@@ -290,17 +291,17 @@ class DuplicateChecker {
    * @param {string} str2 - 文字列2
    * @returns {number} Levenshtein距離
    */
-  calculateLevenshteinDistance(str1, str2) {
+  calculateLevenshteinDistance (str1, str2) {
     const matrix = []
-    
+
     for (let i = 0; i <= str2.length; i++) {
       matrix[i] = [i]
     }
-    
+
     for (let j = 0; j <= str1.length; j++) {
       matrix[0][j] = j
     }
-    
+
     for (let i = 1; i <= str2.length; i++) {
       for (let j = 1; j <= str1.length; j++) {
         if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
@@ -314,21 +315,22 @@ class DuplicateChecker {
         }
       }
     }
-    
+
     return matrix[str2.length][str1.length]
   }
+
   /**
    * コンテンツハッシュを生成
    * @param {Object} item - 対象アイテム
    * @returns {string} コンテンツハッシュ
    */
-  generateContentHash(item) {
+  generateContentHash (item) {
     const content = [
       item.title || '',
       item.description || '',
       item.link || ''
     ].join('|')
-    
+
     return crypto.createHash('md5').update(content).digest('hex')
   }
 
@@ -337,7 +339,7 @@ class DuplicateChecker {
    * @param {Object} item - 対象アイテム
    * @returns {string} アイテムID
    */
-  generateItemId(item) {
+  generateItemId (item) {
     const identifier = item.guid || item.link || item.title || Date.now().toString()
     return crypto.createHash('md5').update(identifier).digest('hex')
   }
@@ -345,34 +347,34 @@ class DuplicateChecker {
   /**
    * 古いエントリをクリーンアップ
    */
-  cleanupOldEntries() {
+  cleanupOldEntries () {
     const cutoffTime = new Date(Date.now() - this.config.retentionHours * 60 * 60 * 1000)
     let removedCount = 0
-    
+
     for (const [itemId, item] of this.seenItems) {
       if (new Date(item.addedAt) < cutoffTime) {
         this.seenItems.delete(itemId)
-        
+
         // Remove from URL cache if applicable
         if (item.link) {
           const normalizedUrl = this.normalizeUrl(item.link)
           this.urlCache.delete(normalizedUrl)
         }
-        
+
         // Remove from content hash cache
         if (this.config.enableContentHashing) {
           const contentHash = this.generateContentHash(item)
           this.contentHashes.delete(contentHash)
         }
-        
+
         removedCount++
       }
     }
-    
+
     if (removedCount > 0) {
-      this.logger.info('Cleaned up old cache entries', { 
+      this.logger.info('Cleaned up old cache entries', {
         removedCount,
-        remainingCount: this.seenItems.size 
+        remainingCount: this.seenItems.size
       })
     }
   }
@@ -380,7 +382,7 @@ class DuplicateChecker {
   /**
    * 定期クリーンアップの設定
    */
-  setupCleanupInterval() {
+  setupCleanupInterval () {
     // Run cleanup every hour
     this.cleanupInterval = setInterval(() => {
       this.cleanupOldEntries()
@@ -391,7 +393,7 @@ class DuplicateChecker {
    * キャッシュ統計を取得
    * @returns {Object} キャッシュ統計
    */
-  getCacheStats() {
+  getCacheStats () {
     return {
       seenItems: this.seenItems.size,
       urlCache: this.urlCache.size,
@@ -404,11 +406,11 @@ class DuplicateChecker {
   /**
    * キャッシュをクリア
    */
-  clearCache() {
+  clearCache () {
     this.seenItems.clear()
     this.urlCache.clear()
     this.contentHashes.clear()
-    
+
     this.logger.info('Cache cleared successfully')
   }
 
@@ -416,7 +418,7 @@ class DuplicateChecker {
    * 設定を更新
    * @param {Object} newConfig - 新しい設定
    */
-  updateConfig(newConfig) {
+  updateConfig (newConfig) {
     this.config = { ...this.config, ...newConfig }
     this.logger.info('Duplicate checker configuration updated', this.config)
   }
@@ -424,12 +426,12 @@ class DuplicateChecker {
   /**
    * リソースをクリーンアップ
    */
-  destroy() {
+  destroy () {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval)
       this.cleanupInterval = null
     }
-    
+
     this.clearCache()
     this.logger.info('Duplicate checker destroyed')
   }
@@ -439,7 +441,7 @@ class DuplicateChecker {
    * @param {Object} item - チェック対象アイテム
    * @returns {Promise<Object>} 詳細結果
    */
-  async getDuplicateDetails(item) {
+  async getDuplicateDetails (item) {
     const details = {
       isDuplicate: false,
       duplicateTypes: [],
@@ -449,19 +451,19 @@ class DuplicateChecker {
         content: false
       }
     }
-    
+
     // URL check
     if (this.isUrlDuplicate(item)) {
       details.isDuplicate = true
       details.duplicateTypes.push('url')
       details.similarity.url = true
     }
-    
+
     // Title similarity check
     if (this.config.enableTitleSimilarity && item.title) {
       let maxSimilarity = 0
       const normalizedTitle = this.normalizeTitle(item.title)
-      
+
       for (const [, cachedItem] of this.seenItems) {
         if (cachedItem.title) {
           const cachedNormalizedTitle = this.normalizeTitle(cachedItem.title)
@@ -469,14 +471,14 @@ class DuplicateChecker {
           maxSimilarity = Math.max(maxSimilarity, similarity)
         }
       }
-      
+
       details.similarity.title = maxSimilarity
       if (maxSimilarity >= this.config.similarityThreshold) {
         details.isDuplicate = true
         details.duplicateTypes.push('title')
       }
     }
-    
+
     // Content hash check
     if (this.config.enableContentHashing) {
       if (this.isContentDuplicate(item)) {
@@ -485,7 +487,7 @@ class DuplicateChecker {
         details.similarity.content = true
       }
     }
-    
+
     return details
   }
 }

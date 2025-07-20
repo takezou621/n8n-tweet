@@ -1,7 +1,7 @@
 /**
  * Content Filter
  * AI関連コンテンツのフィルタリングと品質スコアリング
- * 
+ *
  * Features:
  * - キーワードベースフィルタリング
  * - コンテンツ品質スコアリング
@@ -16,7 +16,7 @@ class ContentFilter {
    * ContentFilter constructor
    * @param {Object} config - フィルタリング設定
    */
-  constructor(config = {}) {
+  constructor (config = {}) {
     this.config = {
       scoreThreshold: 0.7,
       maxDuplicates: 0,
@@ -75,11 +75,11 @@ class ContentFilter {
    * @param {Array} items - フィルタリング対象アイテム配列
    * @param {Object} categories - カテゴリ設定
    * @returns {Promise<Array>} フィルタリング済みアイテム配列
-   */  async filterRelevantContent(items, categories = {}) {
+   */ async filterRelevantContent (items, categories = {}) {
     try {
-      this.logger.info('Starting content filtering', { 
+      this.logger.info('Starting content filtering', {
         itemCount: items.length,
-        categoriesCount: Object.keys(categories).length 
+        categoriesCount: Object.keys(categories).length
       })
 
       const filteredItems = []
@@ -94,10 +94,10 @@ class ContentFilter {
         try {
           // 1. Calculate relevance score
           const relevanceScore = this.calculateRelevanceScore(item, categories)
-          
-          // 2. Calculate quality score  
+
+          // 2. Calculate quality score
           const qualityScore = this.calculateQualityScore(item)
-          
+
           // 3. Apply filters
           if (relevanceScore >= this.config.scoreThreshold) {
             if (qualityScore >= this.config.minQualityScore) {
@@ -112,7 +112,7 @@ class ContentFilter {
                 filteredAt: new Date().toISOString(),
                 filterVersion: '1.0.0'
               }
-              
+
               filteredItems.push(enrichedItem)
               filterStats.relevant++
             } else {
@@ -133,7 +133,7 @@ class ContentFilter {
       filteredItems.sort((a, b) => b.scores.combined - a.scores.combined)
 
       this.logger.info('Content filtering completed', filterStats)
-      
+
       return filteredItems
     } catch (error) {
       this.logger.error('Content filtering failed', { error: error.message })
@@ -147,18 +147,18 @@ class ContentFilter {
    * @param {Object} categories - カテゴリ設定
    * @returns {number} 関連性スコア (0-1)
    */
-  calculateRelevanceScore(item, categories = {}) {
+  calculateRelevanceScore (item, categories = {}) {
     const content = this.extractTextContent(item)
     let score = 0
-    
+
     // Primary keywords (high weight)
     const primaryMatches = this.countKeywordMatches(content, this.aiKeywords.primary)
     score += Math.min(primaryMatches * 0.3, 0.6)
-    
-    // Secondary keywords (medium weight)  
+
+    // Secondary keywords (medium weight)
     const secondaryMatches = this.countKeywordMatches(content, this.aiKeywords.secondary)
     score += Math.min(secondaryMatches * 0.1, 0.3)
-    
+
     // Category-specific keywords
     if (item.category && categories[item.category]) {
       const categoryKeywords = categories[item.category].keywords || []
@@ -166,11 +166,11 @@ class ContentFilter {
       const categoryWeight = categories[item.category].weight || 0.5
       score += Math.min(categoryMatches * 0.1 * categoryWeight, 0.2)
     }
-    
+
     // Negative keywords (penalty)
     const negativeMatches = this.countKeywordMatches(content, this.aiKeywords.negative)
     score -= negativeMatches * 0.2
-    
+
     // Ensure score is within bounds
     return Math.max(0, Math.min(1, score))
   }
@@ -180,22 +180,22 @@ class ContentFilter {
    * @param {Object} item - 評価対象アイテム
    * @returns {number} 品質スコア (0-1)
    */
-  calculateQualityScore(item) {
+  calculateQualityScore (item) {
     let score = 0.5 // Base score
-    
+
     // Title quality
     if (item.title) {
       const titleLength = item.title.length
       if (titleLength >= 10 && titleLength <= 200) {
         score += 0.2
       }
-      
+
       // Title should not be all caps
       if (item.title !== item.title.toUpperCase()) {
         score += 0.1
       }
     }
-    
+
     // Description quality
     if (item.description) {
       const descLength = item.description.length
@@ -203,7 +203,7 @@ class ContentFilter {
         score += 0.2
       }
     }
-    
+
     // URL quality
     if (item.link) {
       try {
@@ -216,7 +216,7 @@ class ContentFilter {
         score -= 0.1 // Invalid URL penalty
       }
     }
-    
+
     // Recency bonus
     if (item.pubDate) {
       const daysOld = (Date.now() - new Date(item.pubDate)) / (1000 * 60 * 60 * 24)
@@ -226,23 +226,24 @@ class ContentFilter {
         score += 0.05
       }
     }
-    
+
     return Math.max(0, Math.min(1, score))
   }
+
   /**
    * アイテムからテキストコンテンツを抽出
    * @param {Object} item - 対象アイテム
    * @returns {string} 結合されたテキストコンテンツ
    */
-  extractTextContent(item) {
+  extractTextContent (item) {
     const parts = []
-    
+
     if (item.title) parts.push(item.title)
     if (item.description) parts.push(item.description)
     if (item.categories && Array.isArray(item.categories)) {
       parts.push(item.categories.join(' '))
     }
-    
+
     return parts.join(' ').toLowerCase()
   }
 
@@ -252,12 +253,12 @@ class ContentFilter {
    * @param {Array} keywords - キーワード配列
    * @returns {number} マッチ数
    */
-  countKeywordMatches(content, keywords) {
+  countKeywordMatches (content, keywords) {
     if (!content || !Array.isArray(keywords)) return 0
-    
+
     let matchCount = 0
     const lowerContent = content.toLowerCase()
-    
+
     keywords.forEach(keyword => {
       if (typeof keyword === 'string') {
         const keywordLower = keyword.toLowerCase()
@@ -266,7 +267,7 @@ class ContentFilter {
         }
       }
     })
-    
+
     return matchCount
   }
 
@@ -275,7 +276,7 @@ class ContentFilter {
    * @param {string} hostname - ドメイン名
    * @returns {boolean} 高品質ドメインかどうか
    */
-  isHighQualityDomain(hostname) {
+  isHighQualityDomain (hostname) {
     const qualityDomains = [
       // Academic
       'arxiv.org', 'acm.org', 'ieee.org', 'nature.com', 'science.org',
@@ -288,7 +289,7 @@ class ContentFilter {
       // News sources
       'techcrunch.com', 'technologyreview.com', 'wired.com', 'arstechnica.com'
     ]
-    
+
     return qualityDomains.some(domain => hostname.includes(domain))
   }
 
@@ -297,16 +298,16 @@ class ContentFilter {
    * @param {string} text - 対象テキスト
    * @returns {string} 言語コード
    */
-  detectLanguage(text) {
+  detectLanguage (text) {
     if (!text || typeof text !== 'string') return 'unknown'
-    
+
     // 日本語文字の正規表現
     const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/
-    
+
     if (japaneseRegex.test(text)) {
       return 'ja'
     }
-    
+
     // デフォルトは英語と仮定
     return 'en'
   }
@@ -317,26 +318,26 @@ class ContentFilter {
    * @param {Array} filteredItems - フィルタリング後のアイテム配列
    * @returns {Object} 統計情報
    */
-  getFilteringStats(originalItems, filteredItems) {
+  getFilteringStats (originalItems, filteredItems) {
     const stats = {
       total: originalItems.length,
       filtered: filteredItems.length,
       filterRate: originalItems.length > 0 ? (filteredItems.length / originalItems.length) : 0,
       averageScore: 0,
       scoreDistribution: {
-        high: 0,    // 0.8+
-        medium: 0,  // 0.5-0.8
-        low: 0      // <0.5
+        high: 0, // 0.8+
+        medium: 0, // 0.5-0.8
+        low: 0 // <0.5
       }
     }
-    
+
     if (filteredItems.length > 0) {
       // Calculate average score
       const totalScore = filteredItems.reduce((sum, item) => {
         return sum + (item.scores?.combined || 0)
       }, 0)
       stats.averageScore = totalScore / filteredItems.length
-      
+
       // Score distribution
       filteredItems.forEach(item => {
         const score = item.scores?.combined || 0
@@ -349,7 +350,7 @@ class ContentFilter {
         }
       })
     }
-    
+
     return stats
   }
 
@@ -358,16 +359,16 @@ class ContentFilter {
    * @param {Array} keywords - 追加するキーワード配列
    * @param {string} type - キーワードタイプ (primary/secondary/negative)
    */
-  addCustomKeywords(keywords, type = 'secondary') {
+  addCustomKeywords (keywords, type = 'secondary') {
     if (!Array.isArray(keywords) || !this.aiKeywords[type]) {
       throw new Error(`Invalid keywords or type: ${type}`)
     }
-    
+
     this.aiKeywords[type].push(...keywords)
-    this.logger.info('Custom keywords added', { 
-      type, 
+    this.logger.info('Custom keywords added', {
+      type,
       count: keywords.length,
-      totalCount: this.aiKeywords[type].length 
+      totalCount: this.aiKeywords[type].length
     })
   }
 
@@ -375,7 +376,7 @@ class ContentFilter {
    * フィルター設定を更新
    * @param {Object} newConfig - 新しい設定オブジェクト
    */
-  updateConfig(newConfig) {
+  updateConfig (newConfig) {
     this.config = { ...this.config, ...newConfig }
     this.logger.info('Filter configuration updated', this.config)
   }

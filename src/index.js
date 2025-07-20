@@ -1,7 +1,7 @@
 /**
  * n8n-tweet: AI情報収集・配信システム
  * メインエントリーポイント
- * 
+ *
  * Features:
  * - RSS Feed自動収集とフィルタリング
  * - ツイート生成と投稿
@@ -27,7 +27,7 @@ const MetricsCollector = require('./monitoring/metrics-collector')
 const TweetHistory = require('./storage/tweet-history')
 
 class AITweetBot {
-  constructor() {
+  constructor () {
     this.initializeLogger()
     this.loadConfiguration()
     this.initializeComponents()
@@ -36,9 +36,9 @@ class AITweetBot {
   /**
    * ロガーを初期化
    */
-  initializeLogger() {
+  initializeLogger () {
     const logDir = process.env.LOG_DIR || './logs'
-    
+
     this.logger = winston.createLogger({
       level: process.env.LOG_LEVEL || 'info',
       format: winston.format.combine(
@@ -68,19 +68,19 @@ class AITweetBot {
   /**
    * 設定を読み込む
    */
-  async loadConfiguration() {
+  async loadConfiguration () {
     try {
       const defaultConfig = require('../config/default.json')
       const feedConfig = require('../config/rss-feeds.json')
-      
+
       // 環境変数の置換処理
       const resolvedConfig = this.resolveEnvironmentVariables(defaultConfig)
-      
+
       this.config = {
         ...resolvedConfig,
         feeds: feedConfig
       }
-      
+
       this.logger.info('Configuration loaded successfully', {
         environment: this.config.environment,
         version: this.config.version
@@ -94,9 +94,9 @@ class AITweetBot {
   /**
    * 設定ファイル内の環境変数を置換する
    */
-  resolveEnvironmentVariables(config) {
+  resolveEnvironmentVariables (config) {
     const resolved = JSON.parse(JSON.stringify(config)) // Deep copy
-    
+
     const replaceEnvVars = (obj) => {
       for (const key in obj) {
         if (typeof obj[key] === 'string') {
@@ -114,7 +114,7 @@ class AITweetBot {
         }
       }
     }
-    
+
     replaceEnvVars(resolved)
     return resolved
   }
@@ -122,28 +122,28 @@ class AITweetBot {
   /**
    * コンポーネントを初期化
    */
-  initializeComponents() {
+  initializeComponents () {
     try {
       // RSS Feed Parser
       this.feedParser = new FeedParser(this.config.apis.rss)
-      
+
       // Content Filtering
       this.contentFilter = new ContentFilter(this.config.content.filtering)
       this.duplicateChecker = new DuplicateChecker(this.config.storage.rssCache)
-      
+
       // Tweet Generation
       this.tweetGenerator = new TweetGenerator(this.config.content.generation)
-      
+
       // Twitter API Client
       this.twitterClient = new TwitterClient(this.config.apis.twitter)
-      
+
       // Storage Components
       this.tweetHistory = new TweetHistory(this.config.storage.tweetHistory)
-      
+
       // Monitoring Components
       this.healthChecker = new HealthChecker(this.config.monitoring.healthCheck)
       this.metricsCollector = new MetricsCollector(this.config.monitoring.metrics)
-      
+
       // コンポーネントを監視に登録
       this.healthChecker.registerComponent('feedParser', this.feedParser)
       this.healthChecker.registerComponent('contentFilter', this.contentFilter)
@@ -151,17 +151,17 @@ class AITweetBot {
       this.healthChecker.registerComponent('tweetGenerator', this.tweetGenerator)
       this.healthChecker.registerComponent('twitterClient', this.twitterClient)
       this.healthChecker.registerComponent('tweetHistory', this.tweetHistory)
-      
+
       // メトリクスを登録
       this.metricsCollector.registerMetric('feed_processing_count', 'counter', 'Number of feed processing operations')
       this.metricsCollector.registerMetric('tweets_posted', 'counter', 'Number of tweets posted')
       this.metricsCollector.registerMetric('errors_total', 'counter', 'Total number of errors')
       this.metricsCollector.registerMetric('feed_processing_duration_ms', 'gauge', 'Feed processing duration in milliseconds')
       this.metricsCollector.registerMetric('tweet_posting_duration_ms', 'gauge', 'Tweet posting duration in milliseconds')
-      
+
       // 初期化完了を記録
       this.lastFeedResults = null
-      
+
       this.logger.info('All components initialized successfully')
     } catch (error) {
       this.logger.error('Failed to initialize components', { error: error.message })
@@ -172,17 +172,17 @@ class AITweetBot {
   /**
    * システムの健全性チェック
    */
-  async healthCheck() {
+  async healthCheck () {
     try {
       // 詳細なヘルスチェックを実行
       const health = await this.healthChecker.performHealthCheck()
-      
+
       this.logger.info('Health check completed', {
         status: health.status,
         score: health.score,
         components: health.totalComponents
       })
-      
+
       return health
     } catch (error) {
       const fallbackHealth = {
@@ -191,7 +191,7 @@ class AITweetBot {
         error: error.message,
         components: {}
       }
-      
+
       this.logger.error('Health check failed', fallbackHealth)
       return fallbackHealth
     }
@@ -200,21 +200,21 @@ class AITweetBot {
   /**
    * RSS フィード処理のメインワークフロー
    */
-  async processFeeds() {
+  async processFeeds () {
     try {
       this.logger.info('Starting RSS feed processing workflow')
-      
+
       // メトリクス収集開始
       const result = await this.metricsCollector.measureExecutionTime(
         'feed_processing',
         async () => {
           // 1. Load feed configuration
           const feedConfigs = this.config.feeds.feeds.filter(feed => feed.enabled)
-          
+
           // 2. Parse RSS feeds
           this.logger.info('Parsing RSS feeds', { count: feedConfigs.length })
           const feedResults = await this.feedParser.parseMultipleFeeds(feedConfigs)
-          
+
           // 3. Extract and combine all items
           const allItems = []
           feedResults.forEach(result => {
@@ -222,33 +222,33 @@ class AITweetBot {
               allItems.push(...result.items)
             }
           })
-          
-          this.logger.info('RSS parsing completed', { 
+
+          this.logger.info('RSS parsing completed', {
             totalItems: allItems.length,
-            feeds: feedResults.length 
+            feeds: feedResults.length
           })
-          
+
           // 4. Filter content for AI relevance
           this.logger.info('Starting content filtering')
           const filteredItems = await this.contentFilter.filterRelevantContent(
-            allItems, 
+            allItems,
             this.config.feeds.categories
           )
-          
+
           // 5. Remove duplicates
           this.logger.info('Checking for duplicates')
           const uniqueItems = await this.duplicateChecker.removeDuplicates(filteredItems)
-          
+
           // 6. Generate tweets
           this.logger.info('Generating tweets')
           const tweets = await this.tweetGenerator.generateTweets(
             uniqueItems,
             this.config.feeds.categories
           )
-          
+
           // 7. Select optimal tweets for posting
           const optimalTweets = this.tweetGenerator.selectOptimalTweets(tweets, 5)
-          
+
           return {
             allItems,
             filteredItems,
@@ -261,13 +261,13 @@ class AITweetBot {
 
       // 結果を保存（メトリクス用）
       this.lastFeedResults = result
-      
+
       // メトリクスを記録
       this.metricsCollector.incrementCounter('feed_processing_count')
       this.metricsCollector.setGauge('rss_items_processed_latest', result.allItems.length)
       this.metricsCollector.setGauge('rss_items_filtered_latest', result.filteredItems.length)
       this.metricsCollector.setGauge('tweets_generated_latest', result.tweets.length)
-      
+
       this.logger.info('Feed processing completed', {
         originalItems: result.allItems.length,
         afterFiltering: result.filteredItems.length,
@@ -275,7 +275,7 @@ class AITweetBot {
         tweetsGenerated: result.tweets.length,
         optimalTweets: result.optimalTweets.length
       })
-      
+
       return result
     } catch (error) {
       this.metricsCollector.incrementCounter('errors_total', 1, { component: 'feed_processing' })
@@ -287,15 +287,15 @@ class AITweetBot {
   /**
    * ツイートを投稿する
    */
-  async postTweets(tweets) {
+  async postTweets (tweets) {
     try {
       if (!tweets || tweets.length === 0) {
         this.logger.warn('No tweets to post')
         return { success: true, posted: 0, message: 'No tweets to post' }
       }
 
-      this.logger.info('Starting tweet posting process', { 
-        tweetCount: tweets.length 
+      this.logger.info('Starting tweet posting process', {
+        tweetCount: tweets.length
       })
 
       // Twitter API認証確認
@@ -320,8 +320,8 @@ class AITweetBot {
 
       if (uniqueTweets.length === 0) {
         this.logger.warn('All tweets were duplicates, nothing to post')
-        return { 
-          success: true, 
+        return {
+          success: true,
           total: tweets.length,
           successful: 0,
           failed: 0,
@@ -343,7 +343,7 @@ class AITweetBot {
         for (let i = 0; i < result.results.length; i++) {
           const postResult = result.results[i]
           const originalTweet = uniqueTweets[i]
-          
+
           try {
             await this.tweetHistory.addTweet({
               id: postResult.data?.id || null,
@@ -404,7 +404,7 @@ class AITweetBot {
   /**
    * 完全なワークフロー実行（RSS収集→フィルタリング→ツイート生成→投稿）
    */
-  async runCompleteWorkflow() {
+  async runCompleteWorkflow () {
     try {
       this.logger.info('Starting complete AI Tweet Bot workflow')
 
@@ -442,31 +442,31 @@ class AITweetBot {
   /**
    * アプリケーション開始
    */
-  async start() {
+  async start () {
     try {
       this.logger.info('Starting AI Tweet Bot', {
         version: this.config.version,
         environment: this.config.environment
       })
-      
+
       // ツイート履歴を読み込み
       await this.tweetHistory.loadHistory()
       this.logger.info('Tweet history loaded')
-      
+
       // Health check
       await this.healthCheck()
-      
+
       // 監視機能を開始
       if (this.config.monitoring?.healthCheck?.enabled !== false) {
         this.healthChecker.startPeriodicChecks()
         this.logger.info('Health monitoring started')
       }
-      
+
       if (this.config.monitoring?.metrics?.collection !== false) {
         this.metricsCollector.startPeriodicCollection(this)
         this.logger.info('Metrics collection started')
       }
-      
+
       this.logger.info('AI Tweet Bot started successfully')
       return true
     } catch (error) {
@@ -478,27 +478,27 @@ class AITweetBot {
   /**
    * アプリケーション停止
    */
-  async stop() {
+  async stop () {
     try {
       this.logger.info('Stopping AI Tweet Bot')
-      
+
       // 監視機能を停止
       if (this.healthChecker) {
         this.healthChecker.stopPeriodicChecks()
         this.logger.info('Health monitoring stopped')
       }
-      
+
       if (this.metricsCollector) {
         await this.metricsCollector.cleanup()
         this.logger.info('Metrics collection stopped')
       }
-      
+
       // ストレージを保存・クリーンアップ
       if (this.tweetHistory) {
         await this.tweetHistory.cleanup()
         this.logger.info('Tweet history saved and cleaned up')
       }
-      
+
       this.logger.info('AI Tweet Bot stopped successfully')
       return true
     } catch (error) {
@@ -511,18 +511,18 @@ class AITweetBot {
 // CLI実行時の処理
 if (require.main === module) {
   const bot = new AITweetBot()
-  
+
   bot.start()
     .then(() => {
       console.log('✅ AI Tweet Bot is running')
-      
+
       // Graceful shutdown
       process.on('SIGINT', async () => {
         console.log('\n🛑 Shutting down gracefully...')
         await bot.stop()
         process.exit(0)
       })
-      
+
       process.on('SIGTERM', async () => {
         console.log('\n🛑 Received SIGTERM, shutting down...')
         await bot.stop()

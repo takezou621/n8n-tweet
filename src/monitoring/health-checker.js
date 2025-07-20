@@ -1,7 +1,7 @@
 /**
  * ヘルスチェッカー
  * システム全体の健全性を監視
- * 
+ *
  * Features:
  * - システムコンポーネントの監視
  * - パフォーマンスメトリクス収集
@@ -14,7 +14,7 @@ const fs = require('fs').promises
 const path = require('path')
 
 class HealthChecker {
-  constructor(config = {}) {
+  constructor (config = {}) {
     this.config = {
       // デフォルト設定
       checkInterval: 300000, // 5分
@@ -25,7 +25,7 @@ class HealthChecker {
       logLevel: 'info',
       ...config
     }
-    
+
     this.initializeLogger()
     this.healthHistory = []
     this.components = new Map()
@@ -37,7 +37,7 @@ class HealthChecker {
   /**
    * ロガーを初期化
    */
-  initializeLogger() {
+  initializeLogger () {
     this.logger = winston.createLogger({
       level: this.config.logLevel,
       format: winston.format.combine(
@@ -60,7 +60,7 @@ class HealthChecker {
   /**
    * コンポーネントを登録
    */
-  registerComponent(name, component) {
+  registerComponent (name, component) {
     if (!name || !component) {
       throw new Error('Component name and instance are required')
     }
@@ -73,19 +73,19 @@ class HealthChecker {
       metrics: {}
     })
 
-    this.logger.info('Component registered for health monitoring', { 
-      componentName: name 
+    this.logger.info('Component registered for health monitoring', {
+      componentName: name
     })
   }
 
   /**
    * コンポーネントの登録を解除
    */
-  unregisterComponent(name) {
+  unregisterComponent (name) {
     if (this.components.has(name)) {
       this.components.delete(name)
-      this.logger.info('Component unregistered from health monitoring', { 
-        componentName: name 
+      this.logger.info('Component unregistered from health monitoring', {
+        componentName: name
       })
     }
   }
@@ -93,9 +93,20 @@ class HealthChecker {
   /**
    * 個別コンポーネントのヘルスチェック
    */
-  async checkComponent(name, component) {
+  async checkComponent (name, component = null) {
     const startTime = Date.now()
-    
+
+    // If no component provided, check if it's registered
+    if (!component && this.components.has(name)) {
+      const registered = this.components.get(name)
+      component = registered.instance
+    }
+
+    // Return null if component not found
+    if (!component) {
+      return null
+    }
+
     try {
       let status = 'healthy'
       let metrics = {}
@@ -105,7 +116,7 @@ class HealthChecker {
       if (typeof component.instance?.healthCheck === 'function') {
         const result = await Promise.race([
           component.instance.healthCheck(),
-          new Promise((_, reject) => 
+          new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Health check timeout')), 10000)
           )
         ])
@@ -124,7 +135,7 @@ class HealthChecker {
       }
 
       const responseTime = Date.now() - startTime
-      
+
       return {
         name,
         status,
@@ -135,7 +146,7 @@ class HealthChecker {
       }
     } catch (error) {
       const responseTime = Date.now() - startTime
-      
+
       return {
         name,
         status: 'unhealthy',
@@ -150,7 +161,7 @@ class HealthChecker {
   /**
    * 全コンポーネントのヘルスチェック実行
    */
-  async performHealthCheck() {
+  async performHealthCheck () {
     const checkStartTime = Date.now()
     const results = []
 
@@ -165,13 +176,13 @@ class HealthChecker {
 
     try {
       const componentResults = await Promise.allSettled(componentChecks)
-      
+
       componentResults.forEach((result, index) => {
         const componentName = Array.from(this.components.keys())[index]
-        
+
         if (result.status === 'fulfilled') {
           results.push(result.value)
-          
+
           // コンポーネント状態を更新
           const component = this.components.get(componentName)
           component.lastCheck = new Date().toISOString()
@@ -190,8 +201,8 @@ class HealthChecker {
         }
       })
     } catch (error) {
-      this.logger.error('Health check execution failed', { 
-        error: error.message 
+      this.logger.error('Health check execution failed', {
+        error: error.message
       })
     }
 
@@ -229,7 +240,7 @@ class HealthChecker {
   /**
    * 全体ステータスを判定
    */
-  determineOverallStatus(score) {
+  determineOverallStatus (score) {
     if (score >= this.config.healthThreshold) {
       return 'healthy'
     } else if (score >= this.config.alertThreshold) {
@@ -242,9 +253,9 @@ class HealthChecker {
   /**
    * 履歴に追加
    */
-  addToHistory(healthData) {
+  addToHistory (healthData) {
     this.healthHistory.push(healthData)
-    
+
     // 履歴サイズを制限
     if (this.healthHistory.length > this.config.maxHistory) {
       this.healthHistory = this.healthHistory.slice(-this.config.maxHistory)
@@ -254,7 +265,7 @@ class HealthChecker {
   /**
    * アラートチェック
    */
-  async checkAlerts(healthData) {
+  async checkAlerts (healthData) {
     if (!this.config.enableAlerts) {
       return
     }
@@ -273,7 +284,7 @@ class HealthChecker {
         timestamp: healthData.timestamp
       })
     }
-    
+
     // 性能劣化をチェック
     else if (healthData.status === 'degraded') {
       await this.sendAlert({
@@ -288,7 +299,7 @@ class HealthChecker {
   /**
    * アラート送信
    */
-  async sendAlert(alertData) {
+  async sendAlert (alertData) {
     const now = Date.now()
     const alertCooldown = 300000 // 5分のクールダウン
 
@@ -298,7 +309,7 @@ class HealthChecker {
     }
 
     this.logger.error('Health alert triggered', alertData)
-    
+
     this.lastAlert = now
 
     // 将来的にはSlack、メール、Webhookなどの通知を実装
@@ -308,7 +319,7 @@ class HealthChecker {
   /**
    * 統計情報を取得
    */
-  getHealthStats(timeRange = 3600000) { // デフォルト1時間
+  getHealthStats (timeRange = 3600000) { // デフォルト1時間
     const cutoffTime = new Date(Date.now() - timeRange)
     const recentHistory = this.healthHistory.filter(
       h => new Date(h.timestamp) > cutoffTime
@@ -341,7 +352,7 @@ class HealthChecker {
   /**
    * 定期ヘルスチェック開始
    */
-  startPeriodicChecks() {
+  startPeriodicChecks () {
     if (this.isRunning) {
       this.logger.warn('Health checker is already running')
       return
@@ -356,8 +367,8 @@ class HealthChecker {
       try {
         await this.performHealthCheck()
       } catch (error) {
-        this.logger.error('Periodic health check failed', { 
-          error: error.message 
+        this.logger.error('Periodic health check failed', {
+          error: error.message
         })
       }
     }, this.config.checkInterval)
@@ -366,25 +377,25 @@ class HealthChecker {
   /**
    * 定期ヘルスチェック停止
    */
-  stopPeriodicChecks() {
+  stopPeriodicChecks () {
     if (!this.isRunning) {
       return
     }
 
     this.logger.info('Stopping periodic health checks')
-    
+
     if (this.intervalId) {
       clearInterval(this.intervalId)
       this.intervalId = null
     }
-    
+
     this.isRunning = false
   }
 
   /**
    * 履歴をファイルに保存
    */
-  async saveHistoryToFile(filePath) {
+  async saveHistoryToFile (filePath) {
     try {
       const historyData = {
         exported: new Date().toISOString(),
@@ -393,15 +404,15 @@ class HealthChecker {
       }
 
       await fs.writeFile(filePath, JSON.stringify(historyData, null, 2))
-      
-      this.logger.info('Health history saved to file', { 
+
+      this.logger.info('Health history saved to file', {
         filePath,
-        recordCount: this.healthHistory.length 
+        recordCount: this.healthHistory.length
       })
     } catch (error) {
-      this.logger.error('Failed to save health history', { 
+      this.logger.error('Failed to save health history', {
         error: error.message,
-        filePath 
+        filePath
       })
       throw error
     }
@@ -410,21 +421,21 @@ class HealthChecker {
   /**
    * 履歴をファイルから読み込み
    */
-  async loadHistoryFromFile(filePath) {
+  async loadHistoryFromFile (filePath) {
     try {
       const fileContent = await fs.readFile(filePath, 'utf8')
       const historyData = JSON.parse(fileContent)
-      
+
       this.healthHistory = historyData.history || []
-      
-      this.logger.info('Health history loaded from file', { 
+
+      this.logger.info('Health history loaded from file', {
         filePath,
-        recordCount: this.healthHistory.length 
+        recordCount: this.healthHistory.length
       })
     } catch (error) {
-      this.logger.error('Failed to load health history', { 
+      this.logger.error('Failed to load health history', {
         error: error.message,
-        filePath 
+        filePath
       })
       throw error
     }
@@ -433,11 +444,11 @@ class HealthChecker {
   /**
    * クリーンアップ
    */
-  async cleanup() {
+  async cleanup () {
     this.stopPeriodicChecks()
     this.components.clear()
     this.healthHistory = []
-    
+
     this.logger.info('Health checker cleaned up')
   }
 }

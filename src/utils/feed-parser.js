@@ -1,7 +1,7 @@
 /**
  * RSS Feed Parser
  * RSSフィードの解析と処理を行うクラス
- * 
+ *
  * Features:
  * - RSS/XMLフィード解析
  * - エラーハンドリングとリトライ機能
@@ -18,7 +18,7 @@ class FeedParser {
    * FeedParser constructor
    * @param {Object} config - 設定オブジェクト
    */
-  constructor(config = {}) {
+  constructor (config = {}) {
     this.config = {
       timeout: 30000,
       retryAttempts: 2,
@@ -58,21 +58,21 @@ class FeedParser {
    * @param {string} configPath - 設定ファイルのパス
    * @returns {Promise<Object>} 設定オブジェクト
    */
-  async loadFeedConfig(configPath) {
+  async loadFeedConfig (configPath) {
     try {
       const configData = await fs.readFile(configPath, 'utf8')
       const config = JSON.parse(configData)
-      
+
       this.logger.info('Feed configuration loaded successfully', {
         configPath,
         feedCount: config.feeds?.length || 0
       })
-      
+
       return config
     } catch (error) {
-      this.logger.error('Failed to load feed configuration', { 
-        configPath, 
-        error: error.message 
+      this.logger.error('Failed to load feed configuration', {
+        configPath,
+        error: error.message
       })
       throw new Error(`Failed to load feed configuration: ${error.message}`)
     }
@@ -83,10 +83,10 @@ class FeedParser {
    * @param {Object} feedConfig - フィード設定
    * @throws {Error} 無効な設定の場合
    */
-  validateFeedConfig(feedConfig) {
+  validateFeedConfig (feedConfig) {
     const required = ['name', 'url']
     const missing = required.filter(field => !feedConfig[field] || feedConfig[field].trim() === '')
-    
+
     if (missing.length > 0) {
       throw new Error(`Invalid feed configuration: missing ${missing.join(', ')}`)
     }
@@ -113,7 +113,7 @@ class FeedParser {
    * @param {Object} feedConfig - フィード設定
    * @returns {Promise<Object>} 解析結果
    */
-  async parseFeed(feedConfig) {
+  async parseFeed (feedConfig) {
     try {
       this.validateFeedConfig(feedConfig)
 
@@ -123,7 +123,7 @@ class FeedParser {
       })
 
       const startTime = Date.now()
-      
+
       // Set timeout for this specific feed
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
@@ -172,7 +172,7 @@ class FeedParser {
    * @param {Object} feedConfig - フィード設定
    * @returns {Array} エンリッチされたアイテム配列
    */
-  enrichFeedItems(items, feedConfig) {
+  enrichFeedItems (items, feedConfig) {
     return items.map(item => {
       const content = `${item.title || ''} ${item.description || ''}`
       const wordCount = this.calculateWordCount(content)
@@ -201,7 +201,7 @@ class FeedParser {
    * @param {string} text - 対象テキスト
    * @returns {number} 単語数
    */
-  calculateWordCount(text) {
+  calculateWordCount (text) {
     if (!text || typeof text !== 'string') return 0
     return text.trim().split(/\s+/).filter(word => word.length > 0).length
   }
@@ -211,7 +211,7 @@ class FeedParser {
    * @param {Object} feedConfig - フィード設定
    * @returns {Promise<Object>} 解析結果
    */
-  async parseWithRetry(feedConfig) {
+  async parseWithRetry (feedConfig) {
     const maxAttempts = feedConfig.retryAttempts || this.config.retryAttempts
     let lastError
 
@@ -220,7 +220,7 @@ class FeedParser {
         return await this.parseFeed(feedConfig)
       } catch (error) {
         lastError = error
-        
+
         this.logger.warn('Feed parsing attempt failed', {
           feedName: feedConfig.name,
           attempt,
@@ -249,10 +249,10 @@ class FeedParser {
    * @param {Array} feedConfigs - フィード設定配列
    * @returns {Promise<Array>} 解析結果配列
    */
-  async parseMultipleFeeds(feedConfigs) {
+  async parseMultipleFeeds (feedConfigs) {
     // Filter enabled feeds only
     const enabledFeeds = feedConfigs.filter(config => config.enabled !== false)
-    
+
     this.logger.info('Starting multiple feed parsing', {
       totalFeeds: feedConfigs.length,
       enabledFeeds: enabledFeeds.length
@@ -264,7 +264,7 @@ class FeedParser {
         if (index > 0) {
           await this.delay(this.config.rateLimitDelay * index)
         }
-        
+
         return await this.parseWithRetry(feedConfig)
       } catch (error) {
         this.logger.error('Individual feed parsing failed', {
@@ -276,7 +276,7 @@ class FeedParser {
     })
 
     const results = await Promise.allSettled(parsePromises)
-    
+
     // Filter successful results
     const successfulResults = results
       .filter(result => result.status === 'fulfilled' && result.value !== null)
@@ -296,7 +296,7 @@ class FeedParser {
    * @param {number} ms - 待機時間（ミリ秒）
    * @returns {Promise} 待機Promise
    */
-  delay(ms) {
+  delay (ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
 
@@ -306,7 +306,7 @@ class FeedParser {
    * @param {string} categoryName - カテゴリ名
    * @returns {Object} カテゴリ情報
    */
-  getCategoryInfo(fullConfig, categoryName) {
+  getCategoryInfo (fullConfig, categoryName) {
     return fullConfig.categories?.[categoryName] || {
       weight: 0.5,
       keywords: [],
@@ -319,7 +319,7 @@ class FeedParser {
    * @param {Object} feedResult - フィード解析結果
    * @returns {Object} 健全性チェック結果
    */
-  checkFeedHealth(feedResult) {
+  checkFeedHealth (feedResult) {
     const health = {
       status: 'healthy',
       issues: [],
@@ -336,7 +336,7 @@ class FeedParser {
     if (feedResult.items && feedResult.items.length > 0) {
       const latestItem = feedResult.items[0]
       const daysSinceLatest = (Date.now() - new Date(latestItem.pubDate)) / (1000 * 60 * 60 * 24)
-      
+
       if (daysSinceLatest > 30) {
         health.issues.push('No recent content (older than 30 days)')
         health.score -= 0.2

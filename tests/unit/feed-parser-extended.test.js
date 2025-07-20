@@ -21,7 +21,7 @@ describe('FeedParser - Extended Tests', () => {
     it('should load valid configuration file', async () => {
       const configPath = path.join(__dirname, '../../config/rss-feeds.json')
       const config = await feedParser.loadFeedConfig(configPath)
-      
+
       expect(config).toHaveProperty('feeds')
       expect(config).toHaveProperty('globalSettings')
       expect(config).toHaveProperty('categories')
@@ -30,7 +30,7 @@ describe('FeedParser - Extended Tests', () => {
 
     it('should handle missing configuration file', async () => {
       const invalidPath = '/non/existent/config.json'
-      
+
       await expect(feedParser.loadFeedConfig(invalidPath))
         .rejects.toThrow('Failed to load feed configuration')
     })
@@ -89,8 +89,8 @@ describe('FeedParser - Extended Tests', () => {
     })
 
     it('should handle timeout', async () => {
-      feedParser.rssParser.parseURL.mockImplementation(() => 
-        new Promise((resolve) => 
+      feedParser.rssParser.parseURL.mockImplementation(() =>
+        new Promise((resolve) =>
           setTimeout(() => resolve({ items: [] }), 200)
         )
       )
@@ -129,8 +129,8 @@ describe('FeedParser - Extended Tests', () => {
         .mockRejectedValueOnce(new Error('First failure'))
         .mockResolvedValueOnce(mockResult)
 
-      const feedConfig = { 
-        name: 'Retry Test', 
+      const feedConfig = {
+        name: 'Retry Test',
         url: 'https://retry.com/rss',
         retryAttempts: 2
       }
@@ -143,15 +143,15 @@ describe('FeedParser - Extended Tests', () => {
     it('should fail after max retries', async () => {
       feedParser.parseFeed.mockRejectedValue(new Error('Persistent error'))
 
-      const feedConfig = { 
-        name: 'Fail Test', 
+      const feedConfig = {
+        name: 'Fail Test',
         url: 'https://fail.com/rss',
         retryAttempts: 2
       }
 
       await expect(feedParser.parseWithRetry(feedConfig))
         .rejects.toThrow('Max retry attempts exceeded')
-      
+
       expect(feedParser.parseFeed).toHaveBeenCalledTimes(2)
     })
   })
@@ -205,7 +205,7 @@ describe('FeedParser - Extended Tests', () => {
       const start = Date.now()
       await feedParser.delay(50)
       const elapsed = Date.now() - start
-      
+
       expect(elapsed).toBeGreaterThanOrEqual(45) // Allow some tolerance
     })
   })
@@ -223,7 +223,7 @@ describe('FeedParser - Extended Tests', () => {
       }
 
       const categoryInfo = feedParser.getCategoryInfo(fullConfig, 'research')
-      
+
       expect(categoryInfo.weight).toBe(1.0)
       expect(categoryInfo.keywords).toContain('paper')
       expect(categoryInfo.hashtagPrefix).toBe('#Research')
@@ -232,7 +232,7 @@ describe('FeedParser - Extended Tests', () => {
     it('should return default category for unknown category', () => {
       const fullConfig = { categories: {} }
       const categoryInfo = feedParser.getCategoryInfo(fullConfig, 'unknown')
-      
+
       expect(categoryInfo.weight).toBe(0.5)
       expect(categoryInfo.hashtagPrefix).toBe('#AI')
     })
@@ -248,7 +248,7 @@ describe('FeedParser - Extended Tests', () => {
       }
 
       const health = feedParser.checkFeedHealth(feedResult)
-      
+
       expect(health.status).toBe('healthy')
       expect(health.score).toBeGreaterThan(0.8)
     })
@@ -260,7 +260,7 @@ describe('FeedParser - Extended Tests', () => {
       }
 
       const health = feedParser.checkFeedHealth(feedResult)
-      
+
       expect(health.status).toBe('warning')
       expect(health.issues).toContain('No items found in feed')
     })
@@ -268,7 +268,7 @@ describe('FeedParser - Extended Tests', () => {
     it('should report old content warning', () => {
       const oldDate = new Date()
       oldDate.setDate(oldDate.getDate() - 45) // 45 days ago
-      
+
       const feedResult = {
         metadata: { duration: 1000 },
         items: [
@@ -277,19 +277,19 @@ describe('FeedParser - Extended Tests', () => {
       }
 
       const health = feedParser.checkFeedHealth(feedResult)
-      
+
       expect(health.issues).toContain('No recent content (older than 30 days)')
       expect(health.score).toBeLessThan(1.0)
     })
 
     it('should report very unhealthy feed', () => {
       const feedResult = {
-        metadata: { duration: 35000 }, // slow  
+        metadata: { duration: 35000 }, // slow
         items: [] // no items
       }
 
       const health = feedParser.checkFeedHealth(feedResult)
-      
+
       expect(health.status).toBe('warning') // 0.6 score = warning status
       expect(health.score).toBeLessThan(0.8)
       expect(health.issues).toHaveLength(2) // no items + slow response
