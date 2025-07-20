@@ -105,7 +105,9 @@ class ContentFilter {
    */
   calculateRelevanceScore (article) {
     let score = 0
-    const text = `${article.title || ''} ${article.description || ''} ${article.content || ''}`.toLowerCase()
+    const text = `${article.title || ''} ${article.description || ''} ${
+      article.content || ''
+    }`.toLowerCase()
 
     // AIキーワードのチェック
     for (const keyword of this.aiKeywords) {
@@ -130,7 +132,11 @@ class ContentFilter {
   categorizeArticle (article) {
     const text = `${article.title || ''} ${article.description || ''}`.toLowerCase()
 
-    if (text.includes('gpt') || text.includes('llm') || text.includes('言語モデル')) {
+    if (
+      text.includes('gpt') ||
+      text.includes('llm') ||
+      text.includes('言語モデル')
+    ) {
       return 'LLM'
     } else if (text.includes('画像') || text.includes('vision') || text.includes('image')) {
       return 'Computer Vision'

@@ -49,9 +49,9 @@ class TweetGenerator {
     ]
 
     this.hashtags = {
-      'LLM': ['#LLM', '#大規模言語モデル', '#AI'],
+      LLM: ['#LLM', '#大規模言語モデル', '#AI'],
       'Computer Vision': ['#ComputerVision', '#画像認識', '#AI'],
-      'Robotics': ['#Robotics', '#ロボット', '#AI'],
+      Robotics: ['#Robotics', '#ロボット', '#AI'],
       'Machine Learning': ['#MachineLearning', '#機械学習', '#AI'],
       'AI General': ['#AI', '#人工知能', '#Tech']
     }
