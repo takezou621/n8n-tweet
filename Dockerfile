@@ -85,9 +85,9 @@ ENV NODE_ENV=production \
     BACKUPS_DIR=/app/backups \
     DATA_DIR=/app/data
 
-# Health check
+# Health check for dashboard API
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/healthz || exit 1
+    CMD curl -f http://localhost:${PORT}/api/v1/health || exit 1
 
 # Switch to non-root user
 USER n8n
@@ -101,8 +101,8 @@ VOLUME ["/app/data", "/app/logs", "/app/backups", "/app/cache"]
 # Use tini as init system
 ENTRYPOINT ["/sbin/tini", "--"]
 
-# Start application
-CMD ["node", "src/main.js"]
+# Start application (dashboard server by default)
+CMD ["node", "src/dashboard/server.js"]
 
 # =====================================
 # Stage 3: Development Environment (Optional)
