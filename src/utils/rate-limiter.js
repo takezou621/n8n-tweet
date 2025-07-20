@@ -220,7 +220,9 @@ class RateLimiter {
         monthly: {
           current: this.usage.tweets.month.count,
           limit: this.limits.tweets.perMonth,
-          percentage: (this.usage.tweets.month.count / this.limits.tweets.perMonth * 100).toFixed(1),
+          percentage: (
+            (this.usage.tweets.month.count / this.limits.tweets.perMonth) * 100
+          ).toFixed(1),
           resetTime: new Date(this.usage.tweets.month.resetTime).toISOString()
         }
       },
@@ -228,7 +230,9 @@ class RateLimiter {
         quarter: {
           current: this.usage.reads.quarter.count,
           limit: this.limits.reads.per15min,
-          percentage: (this.usage.reads.quarter.count / this.limits.reads.per15min * 100).toFixed(1),
+          percentage: (
+            (this.usage.reads.quarter.count / this.limits.reads.per15min) * 100
+          ).toFixed(1),
           resetTime: new Date(this.usage.reads.quarter.resetTime).toISOString()
         },
         hourly: {

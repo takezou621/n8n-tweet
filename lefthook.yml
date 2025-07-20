@@ -1,0 +1,29 @@
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "src/**/*.js"
+      run: npx eslint src/ --fix
+    test-related:
+      glob: "*.js"
+      run: npm run test:integration --passWithNoTests
+
+pre-push:
+  commands:
+    tests:
+      run: npm run test:integration
+    lint-check:
+      run: npx eslint src/
+
+commit-msg:
+  commands:
+    check-commit:
+      run: |
+        if ! grep -qE "^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .+" "{1}"; then
+          echo "Commit message must follow conventional commit format:"
+          echo "type(scope): description"
+          echo ""
+          echo "Types: feat, fix, docs, style, refactor, test, chore"
+          echo "Example: feat(auth): add user login functionality"
+          exit 1
+        fi

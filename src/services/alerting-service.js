@@ -236,7 +236,8 @@ ${Object.keys(alert.metadata).length > 0
       return
     }
 
-    const message = `Health check failed: ${healthStatus.checks.filter(c => !c.status).length} services unhealthy`
+    const unhealthyCount = healthStatus.checks.filter(c => !c.status).length
+    const message = `Health check failed: ${unhealthyCount} services unhealthy`
 
     await this.sendAlert('health_check_failed', message, 'error', {
       health: healthStatus

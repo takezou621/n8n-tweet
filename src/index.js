@@ -153,11 +153,23 @@ class AITweetBot {
       this.healthChecker.registerComponent('tweetHistory', this.tweetHistory)
 
       // メトリクスを登録
-      this.metricsCollector.registerMetric('feed_processing_count', 'counter', 'Number of feed processing operations')
+      this.metricsCollector.registerMetric(
+        'feed_processing_count',
+        'counter',
+        'Number of feed processing operations'
+      )
       this.metricsCollector.registerMetric('tweets_posted', 'counter', 'Number of tweets posted')
       this.metricsCollector.registerMetric('errors_total', 'counter', 'Total number of errors')
-      this.metricsCollector.registerMetric('feed_processing_duration_ms', 'gauge', 'Feed processing duration in milliseconds')
-      this.metricsCollector.registerMetric('tweet_posting_duration_ms', 'gauge', 'Tweet posting duration in milliseconds')
+      this.metricsCollector.registerMetric(
+        'feed_processing_duration_ms',
+        'gauge',
+        'Feed processing duration in milliseconds'
+      )
+      this.metricsCollector.registerMetric(
+        'tweet_posting_duration_ms',
+        'gauge',
+        'Tweet posting duration in milliseconds'
+      )
 
       // 初期化完了を記録
       this.lastFeedResults = null
@@ -371,7 +383,11 @@ class AITweetBot {
       // メトリクスを記録
       this.metricsCollector.incrementCounter('tweets_posted', result.successful)
       if (result.failed > 0) {
-        this.metricsCollector.incrementCounter('errors_total', result.failed, { component: 'twitter_posting' })
+        this.metricsCollector.incrementCounter(
+          'errors_total',
+          result.failed,
+          { component: 'twitter_posting' }
+        )
       }
 
       const finalResult = {
@@ -514,23 +530,23 @@ if (require.main === module) {
 
   bot.start()
     .then(() => {
-      console.log('✅ AI Tweet Bot is running')
+      this.logger.info('✅ AI Tweet Bot is running')
 
       // Graceful shutdown
       process.on('SIGINT', async () => {
-        console.log('\n🛑 Shutting down gracefully...')
+        this.logger.info('🛑 Shutting down gracefully...')
         await bot.stop()
         process.exit(0)
       })
 
       process.on('SIGTERM', async () => {
-        console.log('\n🛑 Received SIGTERM, shutting down...')
+        this.logger.info('🛑 Received SIGTERM, shutting down...')
         await bot.stop()
         process.exit(0)
       })
     })
     .catch(error => {
-      console.error('❌ Failed to start AI Tweet Bot:', error.message)
+      this.logger.error('❌ Failed to start AI Tweet Bot:', error.message)
       process.exit(1)
     })
 }

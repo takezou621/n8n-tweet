@@ -51,7 +51,8 @@ describe('TwitterClient', () => {
 
     it('should throw error when credentials are missing', () => {
       expect(() => {
-        new TwitterClient({})
+        const client = new TwitterClient({})
+        return client
       }).toThrow('Twitter API credentials are required')
     })
 
@@ -64,7 +65,8 @@ describe('TwitterClient', () => {
       }
 
       expect(() => {
-        new TwitterClient(incompleteCredentials)
+        const client = new TwitterClient(incompleteCredentials)
+        return client
       }).toThrow('All Twitter API credentials must be provided')
     })
 

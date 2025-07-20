@@ -237,6 +237,41 @@ class TweetHistory {
   }
 
   /**
+   * ツイートを保存 (integration test用エイリアス)
+   */
+  async saveTweet (tweetData) {
+    // URLをメタデータに追加
+    const enhancedTweetData = {
+      ...tweetData,
+      text: tweetData.tweetText || tweetData.text || 'Generated tweet',
+      metadata: {
+        ...tweetData.metadata,
+        sourceUrl: tweetData.url,
+        posted: true,
+        platform: 'twitter'
+      }
+    }
+
+    return this.addTweet(enhancedTweetData)
+  }
+
+  /**
+   * 重複ツイートをチェック (async wrapper)
+   */
+  async isDuplicate (url) {
+    if (!this.isLoaded) {
+      await this.loadHistory()
+    }
+
+    // URLベースの重複チェック（integration testで期待されている形式）
+    const existingTweet = this.tweetHistory.find(tweet =>
+      tweet.metadata && tweet.metadata.sourceUrl === url
+    )
+
+    return !!existingTweet
+  }
+
+  /**
    * 重複ツイートをチェック
    */
   checkDuplicate (text) {

@@ -48,7 +48,8 @@ fi
 # Check Redis connection (if using Redis)
 if [ -n "$REDIS_HOST" ]; then
     echo "📋 Checking Redis connection..."
-    if redis-cli -h ${REDIS_HOST:-localhost} -p ${REDIS_PORT:-6379} ping > /dev/null 2>&1; then
+    # Use Node.js script instead of redis-cli
+    if node "$(dirname "$0")/redis-health-check.js" > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Redis is accessible${NC}"
     else
         echo -e "${RED}❌ Redis is not accessible${NC}"

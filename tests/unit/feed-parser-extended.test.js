@@ -3,7 +3,6 @@
  */
 
 const FeedParser = require('../../src/utils/feed-parser')
-const fs = require('fs').promises
 const path = require('path')
 
 describe('FeedParser - Extended Tests', () => {

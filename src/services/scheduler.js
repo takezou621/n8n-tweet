@@ -183,7 +183,10 @@ class Scheduler {
     }
 
     const duration = Date.now() - startTime
-    logger.info(`RSS collection completed in ${duration}ms: ${totalProcessed} processed, ${totalPosted} posted`)
+    logger.info(
+      `RSS collection completed in ${duration}ms: ` +
+      `${totalProcessed} processed, ${totalPosted} posted`
+    )
 
     await metricsCollector.recordMetric('rss_collection', {
       duration,
@@ -240,9 +243,6 @@ class Scheduler {
   }
 
   async performCleanup () {
-    const fs = require('fs').promises
-    const path = require('path')
-
     const cleanupTasks = [
       this.cleanupOldLogs(),
       this.cleanupOldMetrics(),

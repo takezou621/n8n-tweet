@@ -5,7 +5,6 @@
  */
 
 const FeedParser = require('../../src/utils/feed-parser')
-const fs = require('fs').promises
 const path = require('path')
 
 describe('FeedParser', () => {
@@ -153,7 +152,7 @@ describe('FeedParser', () => {
 
     it('should handle timeout errors', async () => {
       feedParser.rssParser.parseURL = jest.fn().mockImplementation(() =>
-        new Promise((_, reject) =>
+        new Promise((_resolve, reject) =>
           setTimeout(() => reject(new Error('Timeout')), 100)
         )
       )

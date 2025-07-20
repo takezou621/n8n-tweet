@@ -90,7 +90,9 @@ class BackupService {
   async cleanupOldBackups () {
     try {
       const files = await fs.readdir(this.backupDir)
-      const backupFiles = files.filter(file => file.startsWith('backup-') && file.endsWith('.tar.gz'))
+      const backupFiles = files.filter(
+        file => file.startsWith('backup-') && file.endsWith('.tar.gz')
+      )
 
       if (backupFiles.length <= this.config.retention.daily) {
         return
@@ -118,7 +120,9 @@ class BackupService {
   async listBackups () {
     try {
       const files = await fs.readdir(this.backupDir)
-      const backupFiles = files.filter(file => file.startsWith('backup-') && file.endsWith('.tar.gz'))
+      const backupFiles = files.filter(
+        file => file.startsWith('backup-') && file.endsWith('.tar.gz')
+      )
 
       const backups = await Promise.all(
         backupFiles.map(async (file) => {

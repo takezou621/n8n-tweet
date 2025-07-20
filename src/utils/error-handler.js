@@ -465,7 +465,8 @@ class ErrorHandler {
    */
   getHealth () {
     const stats = this.getStats()
-    const recentErrorRate = this.criticalErrors.length / (this.criticalTimeWindow / 60000) // per minute
+    // Calculate error rate per minute
+    const recentErrorRate = this.criticalErrors.length / (this.criticalTimeWindow / 60000)
 
     return {
       status: recentErrorRate < 1 ? 'healthy' : 'degraded',
