@@ -40,7 +40,7 @@ jobs:
         timeout 30 bash -c 'until node scripts/redis-health-check.js; do sleep 1; done'
 
     - name: Run linter
-      run: npm run lint
+      run: npx eslint src/
       env:
         NODE_ENV: test
 
