@@ -34,6 +34,13 @@ class ErrorHandler {
    * グローバルエラーハンドラーを設定
    */
   setupGlobalHandlers () {
+    // テスト環境やすでにリスナーが設定されている場合はスキップ
+    if (process.env.NODE_ENV === 'test' || this.handlersSetup) {
+      return
+    }
+
+    this.handlersSetup = true
+
     // 未処理の例外をキャッチ
     process.on('uncaughtException', (error) => {
       this.handleCriticalError('uncaught_exception', error, {
@@ -315,33 +322,42 @@ class ErrorHandler {
 
     let lastError
     let currentDelay = delay
+    let attemptCount = 0
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      attemptCount = attempt + 1
+
       try {
         const result = await fn()
 
         if (attempt > 0) {
           this.logger.info('Function succeeded after retry', {
-            attempts: attempt + 1,
+            attempts: attemptCount,
             context
           })
         }
 
-        return { success: true, result, attempts: attempt + 1 }
+        return { success: true, result, attempts: attemptCount }
       } catch (error) {
         lastError = error
         const classification = this.classifyError(error)
 
         this.logger.warn('Function failed, checking retry eligibility', {
-          attempt: attempt + 1,
+          attempt: attemptCount,
           maxRetries: maxRetries + 1,
           retryable: classification.retryable,
           error: error.message,
           context
         })
 
-        // 最後の試行またはリトライ不可能な場合
-        if (attempt === maxRetries || !classification.retryable) {
+        // リトライ不可能な場合はすぐに終了
+        if (!classification.retryable) {
+          const errorResult = await this.handleError('retry_exhausted', lastError, context)
+          return { success: false, error: errorResult.error, attempts: 1 }
+        }
+
+        // 最後の試行の場合も終了
+        if (attempt === maxRetries) {
           break
         }
 
@@ -353,7 +369,7 @@ class ErrorHandler {
 
     // 全てのリトライが失敗
     const errorResult = await this.handleError('retry_exhausted', lastError, context)
-    return { success: false, error: errorResult.error, attempts: maxRetries + 1 }
+    return { success: false, error: errorResult.error, attempts: attemptCount }
   }
 
   /**

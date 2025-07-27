@@ -258,7 +258,7 @@ describe('End-to-End Integration Tests', () => {
       // Test basic error handling - simple validation test
       expect(feedParser.parseFeeds).toBeDefined()
       expect(typeof feedParser.parseFeeds).toBe('function')
-      
+
       // Test with empty array - should return empty array
       const emptyResult = await feedParser.parseFeeds([])
       expect(Array.isArray(emptyResult)).toBe(true)
@@ -389,6 +389,7 @@ describe('End-to-End Integration Tests', () => {
 
       const tempHealthChecker = new HealthChecker({
         logger,
+        healthThreshold: 0.9, // 統合テスト用の厳しい閾値
         components: {
           feedParser,
           contentFilter,

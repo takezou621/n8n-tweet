@@ -1,115 +1,78 @@
-name: Claude Code Review & Quality Gate
+name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize]
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "src/**/*.ts"
+    #   - "src/**/*.tsx"
+    #   - "src/**/*.js"
+    #   - "src/**/*.jsx"
 
 jobs:
-  quality-gate:
-    name: Quality Gate
+  claude-review:
+    # Optional: Filter by PR author
+    # if: |
+    #   github.event.pull_request.user.login == 'external-contributor' ||
+    #   github.event.pull_request.user.login == 'new-developer' ||
+    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
-      issues: write
-      checks: write
+      pull-requests: read
+      issues: read
+      id-token: write
+    
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
 
-      - name: Run Quality Analysis
-        uses: actions/github-script@v7
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@beta
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const prNumber = context.payload.pull_request.number;
-            console.log(`Running quality gate for PR #${prNumber}`);
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber
-            });
+          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
+          # model: "claude-opus-4-20250514"
+          
+          # Direct prompt for automated review (no @claude mention needed)
+          direct_prompt: |
+            Please review this pull request and provide feedback on:
+            - Code quality and best practices
+            - Potential bugs or issues
+            - Performance considerations
+            - Security concerns
+            - Test coverage
+            
+            Be constructive and helpful in your feedback.
 
-            const files = await github.rest.pulls.listFiles({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber
-            });
+          # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
+          # use_sticky_comment: true
+          
+          # Optional: Customize review based on file types
+          # direct_prompt: |
+          #   Review this PR focusing on:
+          #   - For TypeScript files: Type safety and proper interface usage
+          #   - For API endpoints: Security, input validation, and error handling
+          #   - For React components: Performance, accessibility, and best practices
+          #   - For tests: Coverage, edge cases, and test quality
+          
+          # Optional: Different prompts for different authors
+          # direct_prompt: |
+          #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' && 
+          #   'Welcome! Please review this PR from a first-time contributor. Be encouraging and provide detailed explanations for any suggestions.' ||
+          #   'Please provide a thorough code review focusing on our coding standards and best practices.' }}
+          
+          # Optional: Add specific tools for running tests or linting
+          # allowed_tools: "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
+          
+          # Optional: Skip review for certain conditions
+          # if: |
+          #   !contains(github.event.pull_request.title, '[skip-review]') &&
+          #   !contains(github.event.pull_request.title, '[WIP]')
 
-            let issues = [];
-            // Check 1: PR Size
-            if (pr.data.additions + pr.data.deletions > 500) {
-              issues.push('❌ PR is too large (> 500 lines changed). Please split into smaller PRs.');
-            }
-
-            // Check 2: Check for hardcoded secrets
-            for (const file of files.data) {
-              if (!file.patch) continue;
-              if (/(api_key|secret|password)\s*[:=]\s*["'].+["']/i.test(file.patch)) {
-                issues.push(`❌ Potential hardcoded secret found in \`${file.filename}\`.`);
-              }
-              if (/console\.log/.test(file.patch)) {
-                issues.push(`⚠️ \`console.log\` statement found in \`${file.filename}\`.`);
-              }
-            }
-
-            const passed = issues.every(issue => issue.startsWith('⚠️')); // Only fail on ❌
-            const criticalIssues = issues.filter(issue => issue.startsWith('❌'));
-            const description = passed ? 'All quality gates passed.' : `${criticalIssues.length} critical issue(s) found.`;
-
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: pr.data.head.sha,
-              state: passed ? 'success' : 'failure',
-              description: description,
-              context: 'claude/quality-gate'
-            });
-
-            const commentBody = `## 🎯 Quality Gate Result: ${passed ? '✅ Passed' : '❌ Failed'}\n\n${issues.join('\n')}`;
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: commentBody
-            });
-
-            if (!passed) {
-              throw new Error(description);
-            }
-
-  ai-review:
-    name: AI Code Review
-    needs: [quality-gate]
-    if: success()
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-      - name: Install Dependencies
-        run: |
-          npm ci
-      - name: Run AI Analysis
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPO: ${{ github.event.repository.name }}
-          CLAUDE_MODEL: claude-3-haiku-20240307
-        run: |
-          echo "Running AI analysis on PR ${{ github.event.pull_request.number }}..."
-          echo "Note: This workflow uses Claude Code Max for API-key-free operation"
-          npm run cli review ${{ github.event.pull_request.number }} || echo "AI review script failed, but we will not fail the workflow."
