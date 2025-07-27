@@ -117,7 +117,8 @@ class DashboardServer {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 
+            'https://cdnjs.cloudflare.com'],
           scriptSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
           fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
           imgSrc: ["'self'", 'data:', 'https:'],
@@ -341,7 +342,7 @@ class DashboardServer {
       res.json({
         status: 'success',
         data: mockMetrics,
-        timeRange,
+        timeRange: req.query.timeRange || '1h',
         timestamp: new Date().toISOString()
       })
     }
@@ -424,7 +425,8 @@ class DashboardServer {
       const mockTweets = [
         {
           id: '1',
-          content: 'AI研究の最新論文: 「Transformer-based Language Models for Enhanced Natural Language Understanding」ArXivより #AI #研究 #NLP',
+          content: 'AI研究の最新論文: 「Transformer-based Language Models for ' +
+            'Enhanced Natural Language Understanding」ArXivより #AI #研究 #NLP',
           status: 'sent',
           category: 'ai',
           createdAt: new Date().toISOString(),
@@ -460,16 +462,16 @@ class DashboardServer {
       ]
 
       // Filter by status if specified
-      const filteredTweets = status
-        ? mockTweets.filter(tweet => tweet.status === status)
+      const filteredTweets = req.query.status
+        ? mockTweets.filter(tweet => tweet.status === req.query.status)
         : mockTweets
 
       res.json({
         status: 'success',
         data: filteredTweets,
         pagination: {
-          limit: options.limit,
-          offset: options.offset,
+          limit: parseInt(req.query.limit) || 100,
+          offset: parseInt(req.query.offset) || 0,
           total: filteredTweets.length
         },
         timestamp: new Date().toISOString()

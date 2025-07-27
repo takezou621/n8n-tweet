@@ -3,7 +3,7 @@
  * アプリケーション全体のセキュリティ機能を提供
  */
 
-const crypto = require('crypto')
+// const crypto = require('crypto') // Commented out as not currently used
 const rateLimit = require('express-rate-limit')
 const helmet = require('helmet')
 const { getCryptoUtils, sanitizeForLogging } = require('../utils/crypto')
@@ -107,9 +107,6 @@ function securityHeaders () {
 
     // Download Options
     ieNoOpen: true,
-
-    // MIME Sniffing Prevention
-    noSniff: true,
 
     // Origin Agent Cluster
     originAgentCluster: true
