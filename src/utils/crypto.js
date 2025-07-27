@@ -52,8 +52,10 @@ class CryptoUtils {
         } else {
           // 開発環境用のデフォルトキー（本番環境では使用禁止）
           if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
-            this.masterKey = this.deriveKey('default-dev-key-do-not-use-in-production', 'master-key-salt')
-            this.logger.warn('Using default encryption key for development. Do not use in production!')
+            this.masterKey = this.deriveKey('default-dev-key-do-not-use-in-production', 
+              'master-key-salt')
+            this.logger.warn('Using default encryption key for development. ' +
+              'Do not use in production!')
           } else {
             throw new Error('No encryption key found. Set ENCRYPTION_KEY environment variable.')
           }
@@ -96,7 +98,7 @@ class CryptoUtils {
       const iv = crypto.randomBytes(this.config.ivLength)
 
       // 暗号化実行
-      const cipher = crypto.createCipher(this.config.algorithm, encryptionKey)
+      const cipher = crypto.createCipheriv(this.config.algorithm, encryptionKey, iv)
       cipher.setAAD(Buffer.from('n8n-tweet-encryption'))
 
       let encrypted = cipher.update(plaintext, 'utf8', 'hex')
@@ -135,7 +137,7 @@ class CryptoUtils {
       const { iv, tag, data, algorithm } = JSON.parse(jsonData)
 
       // 復号化実行
-      const decipher = crypto.createDecipher(algorithm || this.config.algorithm, encryptionKey)
+      const decipher = crypto.createDecipheriv(algorithm || this.config.algorithm, encryptionKey, Buffer.from(iv, 'hex'))
       decipher.setAAD(Buffer.from('n8n-tweet-encryption'))
       decipher.setAuthTag(Buffer.from(tag, 'hex'))
 

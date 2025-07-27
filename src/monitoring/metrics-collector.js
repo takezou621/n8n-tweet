@@ -331,7 +331,7 @@ class MetricsCollector {
       '7d': 604800000
     }
 
-    const timeRangeMs = timeRangeMap[timeRange] || 3600000
+    // const timeRangeMs = timeRangeMap[timeRange] || 3600000 // For future time-based filtering
 
     // システムメトリクスを最新収集
     this.collectSystemMetrics()
