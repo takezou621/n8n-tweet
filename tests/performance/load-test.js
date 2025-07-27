@@ -11,7 +11,7 @@ const fs = require('fs')
 const FeedParser = require('../../src/utils/feed-parser')
 const ContentFilter = require('../../src/filters/content-filter')
 const TweetGenerator = require('../../src/generators/tweet-generator')
-const TwitterClient = require('../../src/integrations/twitter-client')
+// const TwitterClient = require('../../src/integrations/twitter-client')
 const RateLimiter = require('../../src/utils/rate-limiter')
 const TweetHistory = require('../../src/storage/tweet-history')
 const { createLogger } = require('../../src/utils/logger')
@@ -76,11 +76,17 @@ describe('Performance and Load Tests', () => {
     const resultsPath = path.join(__dirname, '../data/performance-results.json')
     fs.writeFileSync(resultsPath, JSON.stringify(performanceMetrics, null, 2))
 
+    // eslint-disable-next-line no-console
     console.log('\n🚀 Performance Test Summary:')
+    // eslint-disable-next-line no-console
     console.log(`Total Tests: ${performanceMetrics.summary.totalTests}`)
+    // eslint-disable-next-line no-console
     console.log(`Passed Tests: ${performanceMetrics.summary.passedTests}`)
+    // eslint-disable-next-line no-console
     console.log(`Average Response Time: ${performanceMetrics.summary.averageResponseTime}ms`)
+    // eslint-disable-next-line no-console
     console.log(`Max Response Time: ${performanceMetrics.summary.maxResponseTime}ms`)
+    // eslint-disable-next-line no-console
     console.log(`Min Response Time: ${performanceMetrics.summary.minResponseTime}ms`)
   })
 
@@ -277,7 +283,8 @@ describe('Performance and Load Tests', () => {
         articlesCount: articles.length,
         tweetsGenerated: tweets.length,
         tweetsPerSecond,
-        avgTweetLength: (tweets.reduce((sum, t) => sum + t.text.length, 0) / tweets.length).toFixed(1)
+        avgTweetLength: (tweets.reduce((sum, t) => sum + t.text.length, 0) /
+          tweets.length).toFixed(1)
       })
 
       expect(duration).toBeLessThan(15000) // 15秒以内
@@ -363,7 +370,8 @@ describe('Performance and Load Tests', () => {
         await tweetHistory.saveTweet({
           url: `https://performance-test.com/article-${i}`,
           title: `Performance Test Article ${i}`,
-          tweetText: `Performance test tweet ${i} with some additional content to make it realistic`,
+          tweetText: `Performance test tweet ${i} with some additional ` +
+            'content to make it realistic',
           hashtags: ['#performance', '#test', '#ai'],
           postedAt: new Date(),
           tweetId: `perf-test-${i}`
@@ -468,8 +476,10 @@ describe('Performance and Load Tests', () => {
  */
 function generateMockArticles (count, aiRelated = false) {
   const articles = []
-  const aiKeywords = ['artificial intelligence', 'machine learning', 'deep learning', 'neural network', 'AI', 'ML', 'algorithm', 'automation']
-  const generalKeywords = ['technology', 'innovation', 'software', 'development', 'business', 'research']
+  const aiKeywords = ['artificial intelligence', 'machine learning', 'deep learning',
+    'neural network', 'AI', 'ML', 'algorithm', 'automation']
+  const generalKeywords = ['technology', 'innovation', 'software',
+    'development', 'business', 'research']
 
   for (let i = 0; i < count; i++) {
     const keywords = aiRelated ? aiKeywords : [...aiKeywords, ...generalKeywords]

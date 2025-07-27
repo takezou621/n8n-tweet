@@ -14,12 +14,12 @@ describe('Logger', () => {
   beforeEach(() => {
     // テスト用の一時ログディレクトリ
     testLogDir = path.join(__dirname, '..', 'temp-logs')
-    
+
     // 既存のテストログディレクトリを削除
     if (fs.existsSync(testLogDir)) {
       fs.rmSync(testLogDir, { recursive: true, force: true })
     }
-    
+
     logger = new Logger({
       logDir: testLogDir,
       category: 'test',
@@ -32,7 +32,7 @@ describe('Logger', () => {
     if (logger) {
       logger.cleanup()
     }
-    
+
     // テストログディレクトリを削除
     if (fs.existsSync(testLogDir)) {
       fs.rmSync(testLogDir, { recursive: true, force: true })
@@ -63,7 +63,7 @@ describe('Logger', () => {
     test('debugレベルのログが出力できる', () => {
       const message = 'Debug test message'
       const meta = { test: 'debug' }
-      
+
       expect(() => {
         logger.debug(message, meta)
       }).not.toThrow()
@@ -72,7 +72,7 @@ describe('Logger', () => {
     test('infoレベルのログが出力できる', () => {
       const message = 'Info test message'
       const meta = { test: 'info' }
-      
+
       expect(() => {
         logger.info(message, meta)
       }).not.toThrow()
@@ -81,7 +81,7 @@ describe('Logger', () => {
     test('warnレベルのログが出力できる', () => {
       const message = 'Warning test message'
       const meta = { test: 'warn' }
-      
+
       expect(() => {
         logger.warn(message, meta)
       }).not.toThrow()
@@ -90,7 +90,7 @@ describe('Logger', () => {
     test('errorレベルのログが出力できる', () => {
       const message = 'Error test message'
       const meta = { test: 'error' }
-      
+
       expect(() => {
         logger.error(message, meta)
       }).not.toThrow()
@@ -106,9 +106,9 @@ describe('Logger', () => {
           token: 'sensitive-token'
         }
       }
-      
+
       const sanitized = logger.sanitizeData(sensitiveData)
-      
+
       expect(sanitized.username).toBe('testuser')
       expect(sanitized.password).toBe('[REDACTED]')
       expect(sanitized.profile.token).toBe('[REDACTED]')
@@ -120,9 +120,9 @@ describe('Logger', () => {
         secret: 'app-secret',
         credential: 'user-credential'
       }
-      
+
       const sanitized = logger.sanitizeData(sensitiveData)
-      
+
       expect(sanitized.apiKey).toBe('[REDACTED]')
       expect(sanitized.secret).toBe('[REDACTED]')
       expect(sanitized.credential).toBe('[REDACTED]')
@@ -170,7 +170,7 @@ describe('Logger', () => {
   describe('パフォーマンス・メトリクスログ', () => {
     test('パフォーマンスログが出力できる', () => {
       const metrics = { responseTime: 150, memory: '45MB' }
-      
+
       expect(() => {
         logger.performance('API response time', metrics)
       }).not.toThrow()
@@ -210,22 +210,22 @@ describe('Logger', () => {
 
     test('子ロガーを作成できる', () => {
       const childLogger = logger.child('child-category')
-      
+
       expect(childLogger).toBeInstanceOf(Logger)
       expect(childLogger.category).toBe('child-category')
-      
+
       childLogger.cleanup()
     })
 
     test('統計情報を取得できる', () => {
       const stats = logger.getStats()
-      
+
       expect(stats).toHaveProperty('logDir')
       expect(stats).toHaveProperty('category')
       expect(stats).toHaveProperty('level')
       expect(stats).toHaveProperty('transportsCount')
       expect(stats).toHaveProperty('files')
-      
+
       expect(stats.logDir).toBe(testLogDir)
       expect(stats.category).toBe('test')
     })
@@ -234,30 +234,30 @@ describe('Logger', () => {
   describe('ファイル出力', () => {
     test('アプリケーションログファイルが作成される', async () => {
       logger.info('Test log message')
-      
+
       // 少し待ってファイル書き込みを確認
       await new Promise(resolve => setTimeout(resolve, 100))
-      
+
       const appLogPath = path.join(testLogDir, 'app.log')
       expect(fs.existsSync(appLogPath)).toBe(true)
     })
 
     test('エラーログファイルが作成される', async () => {
       logger.error('Test error message')
-      
+
       // 少し待ってファイル書き込みを確認
       await new Promise(resolve => setTimeout(resolve, 100))
-      
+
       const errorLogPath = path.join(testLogDir, 'error.log')
       expect(fs.existsSync(errorLogPath)).toBe(true)
     })
 
     test('カテゴリ別ログファイルが作成される', async () => {
       logger.info('Test category message')
-      
+
       // 少し待ってファイル書き込みを確認
       await new Promise(resolve => setTimeout(resolve, 100))
-      
+
       const categoryLogPath = path.join(testLogDir, 'test.log')
       expect(fs.existsSync(categoryLogPath)).toBe(true)
     })
@@ -269,10 +269,10 @@ describe('Logger', () => {
         logDir: testLogDir,
         enableConsole: false
       })
-      
+
       expect(factoryLogger).toBeInstanceOf(Logger)
       expect(factoryLogger.category).toBe('factory-test')
-      
+
       factoryLogger.cleanup()
     })
   })
@@ -280,7 +280,7 @@ describe('Logger', () => {
   describe('エラーハンドリング', () => {
     test('存在しないログディレクトリでもエラーなく動作する', () => {
       const nonExistentDir = path.join(__dirname, 'non-existent-dir')
-      
+
       expect(() => {
         const testLogger = new Logger({
           logDir: nonExistentDir,
@@ -288,7 +288,7 @@ describe('Logger', () => {
         })
         testLogger.info('Test message')
         testLogger.cleanup()
-        
+
         // クリーンアップ
         if (fs.existsSync(nonExistentDir)) {
           fs.rmSync(nonExistentDir, { recursive: true, force: true })
@@ -299,7 +299,7 @@ describe('Logger', () => {
     test('不正なメタデータでもサニタイズが正常動作する', () => {
       const circularObj = {}
       circularObj.self = circularObj
-      
+
       expect(() => {
         logger.sanitizeData(circularObj)
       }).not.toThrow()

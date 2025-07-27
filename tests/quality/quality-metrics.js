@@ -11,16 +11,15 @@ const fs = require('fs')
 const FeedParser = require('../../src/utils/feed-parser')
 const ContentFilter = require('../../src/filters/content-filter')
 const TweetGenerator = require('../../src/generators/tweet-generator')
-const TwitterClient = require('../../src/integrations/twitter-client')
-const RateLimiter = require('../../src/utils/rate-limiter')
-const TweetHistory = require('../../src/storage/tweet-history')
-const HealthChecker = require('../../src/monitoring/health-checker')
+// const TwitterClient = require('../../src/integrations/twitter-client')
+// const RateLimiter = require('../../src/utils/rate-limiter')
+// const TweetHistory = require('../../src/storage/tweet-history')
+// const HealthChecker = require('../../src/monitoring/health-checker')
 const MetricsCollector = require('../../src/monitoring/metrics-collector')
 const { createLogger } = require('../../src/utils/logger')
-const { createErrorHandler } = require('../../src/utils/error-handler')
+// const { createErrorHandler } = require('../../src/utils/error-handler')
 
 describe('Quality Metrics Tests', () => {
-  let metricsCollector
   let logger
   let qualityReport
 
@@ -30,7 +29,9 @@ describe('Quality Metrics Tests', () => {
       enableConsole: false
     })
 
-    metricsCollector = new MetricsCollector({
+    // Initialize metrics collector for performance tracking
+    // eslint-disable-next-line no-new
+    new MetricsCollector({
       logger,
       enablePerformanceMonitoring: true,
       enableBusinessMetrics: true
@@ -52,10 +53,15 @@ describe('Quality Metrics Tests', () => {
     const reportPath = path.join(__dirname, '../data/quality-report.json')
     fs.writeFileSync(reportPath, JSON.stringify(qualityReport, null, 2))
 
+    // eslint-disable-next-line no-console
     console.log('\n📊 Quality Metrics Summary:')
+    // eslint-disable-next-line no-console
     console.log('Code Quality Score:', qualityReport.codeQuality.overallScore || 'N/A')
+    // eslint-disable-next-line no-console
     console.log('Test Coverage:', qualityReport.testCoverage.overall || 'N/A')
+    // eslint-disable-next-line no-console
     console.log('Performance Score:', qualityReport.performance.overallScore || 'N/A')
+    // eslint-disable-next-line no-console
     console.log('Maintainability:', qualityReport.maintainability.score || 'N/A')
   })
 
@@ -101,6 +107,7 @@ describe('Quality Metrics Tests', () => {
       expect(avgComplexity).toBeLessThanOrEqual(15) // 許容範囲
       complexityResults.forEach(result => {
         if (result.exists) {
+          // eslint-disable-next-line jest/no-conditional-expect
           expect(result.complexity).toBeLessThanOrEqual(20) // 最大限界
         }
       })
@@ -152,9 +159,11 @@ describe('Quality Metrics Tests', () => {
 
       functionAnalysis.forEach(fileAnalysis => {
         if (fileAnalysis.exists) {
+          // eslint-disable-next-line jest/no-conditional-expect
           expect(fileAnalysis.avgFunctionLength).toBeLessThanOrEqual(50) // 平均50行以下
 
           fileAnalysis.functions.forEach(func => {
+            // eslint-disable-next-line jest/no-conditional-expect
             expect(func.lines).toBeLessThanOrEqual(100) // 各関数100行以下
           })
         }
@@ -179,6 +188,7 @@ describe('Quality Metrics Tests', () => {
           const coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'))
           coverageData = coverage.total || coverageData
         } catch (error) {
+          // eslint-disable-next-line no-console
           console.warn('Could not read coverage data:', error.message)
         }
       }
@@ -221,7 +231,8 @@ describe('Quality Metrics Tests', () => {
         }
       })
 
-      const testCoverage = testFileStatus.filter(t => t.exists).length / expectedTestFiles.length * 100
+      const testCoverage = testFileStatus.filter(t => t.exists).length /
+        expectedTestFiles.length * 100
 
       qualityReport.testCoverage.testFiles = {
         expected: expectedTestFiles.length,
@@ -239,11 +250,14 @@ describe('Quality Metrics Tests', () => {
       const startTime = Date.now()
 
       // 主要コンポーネントの初期化時間を測定
-      const feedParser = new FeedParser({ enableCache: false })
-      const contentFilter = new ContentFilter({
+      // eslint-disable-next-line no-new
+      new FeedParser({ enableCache: false })
+      // eslint-disable-next-line no-new
+      new ContentFilter({
         keywordsFile: path.join(__dirname, '../../config/keywords.json')
       })
-      const tweetGenerator = new TweetGenerator({
+      // eslint-disable-next-line no-new
+      new TweetGenerator({
         templatesFile: path.join(__dirname, '../../config/tweet-templates.json')
       })
 
@@ -262,7 +276,8 @@ describe('Quality Metrics Tests', () => {
       const initialMemory = process.memoryUsage()
 
       // 通常の処理を実行
-      const feedParser = new FeedParser({ enableCache: false })
+      // eslint-disable-next-line no-new
+      new FeedParser({ enableCache: false })
       const mockArticles = Array.from({ length: 100 }, (_, i) => ({
         title: `Test Article ${i}`,
         content: 'Test content '.repeat(100),
@@ -307,7 +322,8 @@ describe('Quality Metrics Tests', () => {
         }
       })
 
-      const avgCommentRatio = commentAnalysis.reduce((sum, f) => sum + f.commentRatio, 0) / commentAnalysis.length
+      const avgCommentRatio = commentAnalysis.reduce((sum, f) => sum + f.commentRatio, 0) /
+        commentAnalysis.length
 
       qualityReport.maintainability = {
         commentAnalysis,

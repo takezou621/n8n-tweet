@@ -3,10 +3,10 @@
  * システムのセキュリティ脆弱性とデータ保護機能をテスト
  */
 
-const { describe, test, expect, beforeAll, afterAll, beforeEach } = require('@jest/globals')
+const { describe, test, expect, beforeAll, afterAll } = require('@jest/globals')
 const path = require('path')
 const fs = require('fs')
-const crypto = require('crypto')
+// const crypto = require('crypto')
 
 // テスト対象モジュール
 const FeedParser = require('../../src/utils/feed-parser')
@@ -23,7 +23,6 @@ describe('Security Tests', () => {
   let tweetGenerator
   let tweetHistory
   let logger
-  let errorHandler
   let securityTestResults
 
   beforeAll(async () => {
@@ -33,7 +32,8 @@ describe('Security Tests', () => {
       enableConsole: false
     })
 
-    errorHandler = createErrorHandler({
+    // Initialize error handler for security tests
+    createErrorHandler({
       logger,
       enableNotifications: false
     })
@@ -75,10 +75,15 @@ describe('Security Tests', () => {
     const resultsPath = path.join(__dirname, '../data/security-results.json')
     fs.writeFileSync(resultsPath, JSON.stringify(securityTestResults, null, 2))
 
+    // eslint-disable-next-line no-console
     console.log('\n🔒 Security Test Summary:')
+    // eslint-disable-next-line no-console
     console.log(`Passed Tests: ${securityTestResults.passedTests}`)
+    // eslint-disable-next-line no-console
     console.log(`Failed Tests: ${securityTestResults.failedTests}`)
+    // eslint-disable-next-line no-console
     console.log(`Vulnerabilities Found: ${securityTestResults.vulnerabilities.length}`)
+    // eslint-disable-next-line no-console
     console.log(`Critical Issues: ${securityTestResults.criticalIssues.length}`)
   })
 
@@ -202,10 +207,12 @@ describe('Security Tests', () => {
 
     test('ツイートテンプレート注入防止', async () => {
       const injectionPayloads = [
+        // eslint-disable-next-line no-template-curly-in-string
         '${process.env.SECRET_KEY}',
         '#{require("fs").readFileSync("/etc/passwd")}',
         '<%= system("rm -rf /") %>',
         '{{constructor.constructor("alert(1)")()}}',
+        // eslint-disable-next-line no-template-curly-in-string
         '${this.constructor.constructor("return process")().env}',
         '#{Java.type("java.lang.System").getProperty("user.home")}'
       ]
@@ -262,8 +269,16 @@ describe('Security Tests', () => {
 
       let exposedCredentials = false
 
+      // 認証情報の露出チェック
+      sensitiveData.forEach(data => {
+        if (data && data.includes('real-')) {
+          exposedCredentials = true
+        }
+      })
+
       // Twitter クライアントのログ出力をチェック
-      const twitterClient = new TwitterClient({
+      // eslint-disable-next-line no-new
+      new TwitterClient({
         apiKey: 'test-key',
         apiSecret: 'test-secret',
         accessToken: 'test-token',
@@ -284,6 +299,8 @@ describe('Security Tests', () => {
           debug: () => {}
         }
       })
+
+      expect(exposedCredentials).toBe(false)
 
       recordSecurityResult(
         'Twitter API Credentials Protection',
@@ -344,6 +361,8 @@ describe('Security Tests', () => {
         credentialsExposed ? 'Sensitive data exposed in logs' : null,
         'high'
       )
+
+      expect(credentialsExposed).toBe(false)
 
       // Note: 実際のLoggerクラスではサニタイズが実装されている想定
       // このテストはロガーの機密情報マスキング機能をテスト
@@ -564,7 +583,8 @@ describe('Security Tests', () => {
       // Note: 開発環境では詳細エラーが必要だが、本番環境では制限すべき
       securityTestResults.recommendations.push({
         area: 'Error Handling',
-        recommendation: 'Implement production-safe error messages that do not expose system details',
+        recommendation: 'Implement production-safe error messages that do not ' +
+          'expose system details',
         priority: 'medium'
       })
     })
