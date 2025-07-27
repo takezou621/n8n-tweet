@@ -676,5 +676,76 @@ describe('Security Tests', () => {
         priority: 'low'
       })
     })
+
+    test('セキュリティ設定の統合検証', () => {
+      const productionConfig = require('../../config/production.json')
+
+      const securityChecks = [
+        {
+          name: 'Encryption Enabled',
+          check: () => productionConfig.security?.enableEncryption === true
+        },
+        {
+          name: 'Input Validation Enabled',
+          check: () => productionConfig.security?.enableInputValidation === true
+        },
+        {
+          name: 'Output Sanitization Enabled',
+          check: () => productionConfig.security?.enableOutputSanitization === true
+        },
+        {
+          name: 'Rate Limiting Enabled',
+          check: () => productionConfig.security?.enableRateLimiting === true
+        },
+        {
+          name: 'Security Headers Enabled',
+          check: () => productionConfig.security?.enableSecurityHeaders === true
+        },
+        {
+          name: 'CORS Configured',
+          check: () => productionConfig.security?.cors?.enabled === true
+        },
+        {
+          name: 'Audit Logging Enabled',
+          check: () => productionConfig.security?.audit?.enabled === true
+        },
+        {
+          name: 'SSL Validation Enabled',
+          check: () => productionConfig.rss?.validateSSL === true
+        },
+        {
+          name: 'Tweet History Encryption',
+          check: () => productionConfig.storage?.tweetHistory?.encryptionEnabled === true
+        },
+        {
+          name: 'Log Sanitization',
+          check: () => productionConfig.logging?.sanitizeOutput === true
+        }
+      ]
+
+      let allChecksPassed = true
+      const failedChecks = []
+
+      for (const { name, check } of securityChecks) {
+        try {
+          if (!check()) {
+            allChecksPassed = false
+            failedChecks.push(name)
+          }
+        } catch (error) {
+          allChecksPassed = false
+          failedChecks.push(`${name} (Error: ${error.message})`)
+        }
+      }
+
+      recordSecurityResult(
+        'Production Security Configuration',
+        allChecksPassed,
+        allChecksPassed ? null : `Failed checks: ${failedChecks.join(', ')}`,
+        'critical'
+      )
+
+      expect(allChecksPassed).toBe(true)
+    })
   })
 })

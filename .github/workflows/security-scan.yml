@@ -1,0 +1,385 @@
+name: Security Scan
+
+on:
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  push:
+    branches: [ main ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of security scan to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+        - quick
+        - full
+        - dependencies-only
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --prefer-offline --no-audit
+
+    - name: Run npm audit
+      run: |
+        echo "Running npm audit..."
+        npm audit --audit-level=moderate --json > audit-results.json || true
+        
+        # Parse and display results
+        if [ -s audit-results.json ]; then
+          echo "Audit results found:"
+          cat audit-results.json | jq -r '.vulnerabilities | keys[] as $k | "\($k): \(.[$k].severity)"' || true
+        else
+          echo "No vulnerabilities found by npm audit"
+        fi
+
+    - name: Snyk security scan
+      uses: snyk/actions/node@master
+      continue-on-error: true
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --severity-threshold=medium --json > snyk-results.json
+
+    - name: Upload audit results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-audit-results
+        path: |
+          audit-results.json
+          snyk-results.json
+        retention-days: 30
+
+  # Code security analysis
+  code-security:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type != 'dependencies-only'
+    timeout-minutes: 15
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: javascript
+        queries: security-and-quality
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:javascript"
+
+    - name: ESLint security rules
+      run: |
+        echo "Running ESLint with security rules..."
+        npx eslint src/ \
+          --ext .js \
+          --format=json \
+          --output-file=eslint-security.json \
+          --config .eslintrc-security.js || true
+
+    - name: Create security-focused ESLint config
+      run: |
+        cat > .eslintrc-security.js << 'EOF'
+        module.exports = {
+          extends: ['standard'],
+          env: {
+            node: true,
+            es2022: true
+          },
+          rules: {
+            // Security-focused rules
+            'no-eval': 'error',
+            'no-implied-eval': 'error',
+            'no-new-func': 'error',
+            'no-script-url': 'error',
+            'no-alert': 'error',
+            'no-debugger': 'error',
+            'no-console': 'error'
+          }
+        };
+        EOF
+
+    - name: Upload security analysis results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: code-security-results
+        path: eslint-security.json
+        retention-days: 30
+
+  # Container security scan
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == ''
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image for scanning
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        target: production
+        load: true
+        tags: n8n-tweet:security-scan
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: 'n8n-tweet:security-scan'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: Run Grype vulnerability scanner
+      uses: anchore/scan-action@v3
+      id: grype-scan
+      with:
+        image: "n8n-tweet:security-scan"
+        fail-build: false
+        severity-cutoff: medium
+
+    - name: Upload Grype scan results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: grype-security-scan
+        path: ${{ steps.grype-scan.outputs.sarif }}
+        retention-days: 30
+
+  # Runtime security checks
+  runtime-security:
+    name: Runtime Security Checks
+    runs-on: ubuntu-latest
+    if: github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == ''
+    timeout-minutes: 10
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --prefer-offline --no-audit
+
+    - name: Wait for Redis
+      run: timeout 30 bash -c 'until node scripts/redis-health-check.js; do sleep 1; done'
+
+    - name: Run security tests
+      run: npm run test:security
+      env:
+        NODE_ENV: test
+        CI: true
+        REDIS_URL: redis://localhost:6379
+
+    - name: Check for sensitive data in logs
+      run: |
+        echo "Checking for potential sensitive data patterns..."
+        
+        # Check for common secret patterns
+        if find . -name "*.log" -exec grep -l -E "(password|secret|key|token).*=" {} \; 2>/dev/null; then
+          echo "Warning: Potential sensitive data found in log files"
+        fi
+        
+        # Check for hardcoded credentials
+        if grep -r -E "(password|secret|key|token).*=.*['\"][a-zA-Z0-9]" src/ --exclude-dir=node_modules 2>/dev/null; then
+          echo "Warning: Potential hardcoded credentials found"
+        fi
+
+    - name: Check file permissions
+      run: |
+        echo "Checking file permissions..."
+        find . -type f -perm -002 ! -path "./node_modules/*" ! -path "./.git/*" || true
+
+  # Security report generation
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, code-security, container-security, runtime-security]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+    - name: Download all security artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: security-artifacts
+
+    - name: Generate security summary
+      run: |
+        echo "# Security Scan Summary" > security-summary.md
+        echo "**Scan Date:** $(date -u)" >> security-summary.md
+        echo "**Repository:** ${{ github.repository }}" >> security-summary.md
+        echo "**Commit:** ${{ github.sha }}" >> security-summary.md
+        echo "" >> security-summary.md
+        
+        echo "## Scan Results" >> security-summary.md
+        echo "| Component | Status |" >> security-summary.md
+        echo "|-----------|---------|" >> security-summary.md
+        echo "| Dependencies | ${{ needs.dependency-scan.result }} |" >> security-summary.md
+        echo "| Code Analysis | ${{ needs.code-security.result }} |" >> security-summary.md
+        echo "| Container | ${{ needs.container-security.result }} |" >> security-summary.md
+        echo "| Runtime | ${{ needs.runtime-security.result }} |" >> security-summary.md
+        echo "" >> security-summary.md
+        
+        # Add recommendations based on results
+        if [[ "${{ needs.dependency-scan.result }}" != "success" ]]; then
+          echo "⚠️ **Dependency vulnerabilities detected** - Review npm audit results" >> security-summary.md
+        fi
+        
+        if [[ "${{ needs.code-security.result }}" != "success" ]]; then
+          echo "⚠️ **Code security issues detected** - Review CodeQL results" >> security-summary.md
+        fi
+        
+        if [[ "${{ needs.container-security.result }}" != "success" ]]; then
+          echo "⚠️ **Container vulnerabilities detected** - Review Trivy/Grype results" >> security-summary.md
+        fi
+        
+        if [[ "${{ needs.runtime-security.result }}" != "success" ]]; then
+          echo "⚠️ **Runtime security issues detected** - Review security test results" >> security-summary.md
+        fi
+
+    - name: Upload security summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-summary
+        path: security-summary.md
+        retention-days: 90
+
+    - name: Create security issue on failure
+      if: failure() && github.event_name == 'schedule'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = `Security Scan Failed - ${new Date().toISOString().split('T')[0]}`;
+          const body = `
+          ## Security Scan Failure Report
+          
+          **Date:** ${new Date().toISOString()}
+          **Workflow:** ${{ github.workflow }}
+          **Run ID:** ${{ github.run_id }}
+          
+          One or more security scans failed during the scheduled run.
+          
+          ### Results:
+          - Dependencies: ${{ needs.dependency-scan.result }}
+          - Code Analysis: ${{ needs.code-security.result }}
+          - Container: ${{ needs.container-security.result }}
+          - Runtime: ${{ needs.runtime-security.result }}
+          
+          Please review the workflow logs and security artifacts for details.
+          
+          **Action Required:** Security team should investigate and address any findings.
+          `;
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['security', 'automated']
+          });
+
+    - name: Notify security team on critical findings
+      if: failure()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        channel: '#security'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+        custom_payload: |
+          {
+            text: "🚨 Critical Security Scan Failure",
+            attachments: [{
+              color: "danger",
+              fields: [{
+                title: "Repository",
+                value: "${{ github.repository }}",
+                short: true
+              }, {
+                title: "Scan Type",
+                value: "${{ github.event.inputs.scan_type || 'scheduled' }}",
+                short: true
+              }, {
+                title: "Failed Components",
+                value: "Check workflow logs for details",
+                short: false
+              }]
+            }]
+          }

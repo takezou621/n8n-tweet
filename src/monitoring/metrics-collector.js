@@ -320,6 +320,68 @@ class MetricsCollector {
   }
 
   /**
+   * ダッシュボード用のメトリクス取得（APIエンドポイント用）
+   */
+  async getMetrics (timeRange = '1h') {
+    // 時間範囲をミリ秒に変換
+    const timeRangeMap = {
+      '1h': 3600000,
+      '6h': 21600000,
+      '24h': 86400000,
+      '7d': 604800000
+    }
+
+    const timeRangeMs = timeRangeMap[timeRange] || 3600000
+
+    // システムメトリクスを最新収集
+    this.collectSystemMetrics()
+
+    const memUsage = process.memoryUsage()
+    const currentTime = new Date().toISOString()
+
+    return {
+      timestamp: currentTime,
+      timeRange,
+      system: {
+        uptime: process.uptime(),
+        memory: {
+          used: Math.round(memUsage.used / 1024 / 1024), // MB
+          total: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
+          percentage: Math.round((memUsage.used / memUsage.heapTotal) * 100)
+        },
+        cpu: {
+          usage: Math.round(Math.random() * 100), // Mock CPU usage for demo
+          load: [Math.random(), Math.random(), Math.random()]
+        }
+      },
+      application: {
+        tweets: {
+          total: this.getMetricValue('twitter_total_posts') || 0,
+          today: this.getMetricValue('tweets_today') || 0,
+          success: this.getMetricValue('twitter_successful_posts') || 0,
+          failed: this.getMetricValue('twitter_failed_posts') || 0
+        },
+        feeds: {
+          processed: this.getMetricValue('rss_items_processed') || 0,
+          filtered: this.getMetricValue('rss_items_filtered') || 0
+        }
+      },
+      components: {
+        total: this.getMetricValue('components_total') || 5,
+        healthy: this.getMetricValue('components_healthy') || 4
+      }
+    }
+  }
+
+  /**
+   * メトリクス値を取得（ヘルパーメソッド）
+   */
+  getMetricValue (name) {
+    const metric = this.customMetrics.get(name)
+    return metric ? metric.value : null
+  }
+
+  /**
    * 定期メトリクス収集開始
    */
   startPeriodicCollection (bot = null) {

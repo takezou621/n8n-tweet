@@ -13,6 +13,7 @@ const winston = require('winston')
 const fs = require('fs').promises
 const path = require('path')
 const crypto = require('crypto')
+const { getCryptoUtils } = require('../utils/crypto')
 
 class TweetHistory {
   constructor (config = {}) {
@@ -22,6 +23,7 @@ class TweetHistory {
       maxEntries: 10000,
       retentionDays: 90,
       enableCompression: true,
+      enableEncryption: false, // 暗号化機能
       autoSave: true,
       saveInterval: 300000, // 5分
       logLevel: 'info',
@@ -34,6 +36,11 @@ class TweetHistory {
     this.isLoaded = false
     this.saveIntervalId = null
     this.isDirty = false
+
+    // 暗号化ユーティリティの初期化
+    if (this.config.enableEncryption) {
+      this.cryptoUtils = getCryptoUtils({ logger: this.logger })
+    }
   }
 
   /**
@@ -98,7 +105,23 @@ class TweetHistory {
 
       // ファイルを読み込み
       const fileContent = await fs.readFile(this.config.storageFile, 'utf8')
-      const historyData = JSON.parse(fileContent)
+
+      let historyData
+      if (this.config.enableEncryption && this.cryptoUtils) {
+        try {
+          // 暗号化ファイルの復号化
+          historyData = this.cryptoUtils.decrypt(fileContent)
+          this.logger.debug('Tweet history file decrypted successfully')
+        } catch (decryptError) {
+          // 復号化に失敗した場合、平文として読み込みを試行
+          this.logger.warn('Failed to decrypt tweet history, trying as plain text', {
+            error: decryptError.message
+          })
+          historyData = JSON.parse(fileContent)
+        }
+      } else {
+        historyData = JSON.parse(fileContent)
+      }
 
       // バージョン互換性チェック
       if (historyData.version !== '1.0') {
@@ -311,9 +334,11 @@ class TweetHistory {
       const historyData = {
         version: '1.0',
         savedAt: new Date().toISOString(),
+        encrypted: this.config.enableEncryption,
         config: {
           maxEntries: this.config.maxEntries,
-          retentionDays: this.config.retentionDays
+          retentionDays: this.config.retentionDays,
+          enableEncryption: this.config.enableEncryption
         },
         stats: {
           totalTweets: this.tweetHistory.length,
@@ -326,14 +351,28 @@ class TweetHistory {
       const dir = path.dirname(this.config.storageFile)
       await fs.mkdir(dir, { recursive: true })
 
-      // JSON として保存
-      const jsonData = JSON.stringify(historyData, null, this.config.enableCompression ? 0 : 2)
-      await fs.writeFile(this.config.storageFile, jsonData, 'utf8')
+      let fileContent
+      if (this.config.enableEncryption && this.cryptoUtils) {
+        // 暗号化して保存
+        fileContent = this.cryptoUtils.encrypt(historyData)
+        this.logger.debug('Tweet history encrypted for storage')
+      } else {
+        // 平文として保存
+        fileContent = JSON.stringify(historyData, null, this.config.enableCompression ? 0 : 2)
+      }
+
+      await fs.writeFile(this.config.storageFile, fileContent, 'utf8')
+
+      // ファイル権限を制限（Unix系のみ）
+      if (process.platform !== 'win32') {
+        await fs.chmod(this.config.storageFile, 0o600) // 所有者のみ読み書き可能
+      }
 
       this.isDirty = false
 
       this.logger.info('Tweet history saved successfully', {
-        fileSize: jsonData.length,
+        fileSize: fileContent.length,
+        encrypted: this.config.enableEncryption,
         storageFile: this.config.storageFile
       })
     } catch (error) {
@@ -593,7 +632,8 @@ class TweetHistory {
         config: {
           maxEntries: this.config.maxEntries,
           retentionDays: this.config.retentionDays,
-          autoSave: this.config.autoSave
+          autoSave: this.config.autoSave,
+          enableEncryption: this.config.enableEncryption
         },
         timestamp: new Date().toISOString()
       }
@@ -604,6 +644,179 @@ class TweetHistory {
         loaded: this.isLoaded,
         timestamp: new Date().toISOString()
       }
+    }
+  }
+
+  /**
+   * 暗号化を有効/無効にする
+   */
+  async setEncryption (enabled) {
+    try {
+      if (enabled && !this.cryptoUtils) {
+        this.cryptoUtils = getCryptoUtils({ logger: this.logger })
+      }
+
+      const previousSetting = this.config.enableEncryption
+      this.config.enableEncryption = enabled
+
+      if (previousSetting !== enabled) {
+        this.isDirty = true
+        await this.saveHistory() // 新しい設定で保存
+
+        this.logger.info('Tweet history encryption setting changed', {
+          previousSetting,
+          newSetting: enabled
+        })
+      }
+    } catch (error) {
+      this.logger.error('Failed to change encryption setting', {
+        error: error.message
+      })
+      throw error
+    }
+  }
+
+  /**
+   * 既存ファイルの暗号化状態を確認
+   */
+  async checkEncryptionStatus () {
+    try {
+      if (!await this.fileExists()) {
+        return { exists: false }
+      }
+
+      const fileContent = await fs.readFile(this.config.storageFile, 'utf8')
+
+      // JSON として解析可能かチェック
+      try {
+        const data = JSON.parse(fileContent)
+        return {
+          exists: true,
+          encrypted: false,
+          hasEncryptionFlag: data.encrypted !== undefined,
+          encryptionFlag: data.encrypted
+        }
+      } catch (parseError) {
+        // JSON として解析できない場合、暗号化されている可能性が高い
+        return {
+          exists: true,
+          encrypted: true,
+          detectedByParsing: true
+        }
+      }
+    } catch (error) {
+      this.logger.error('Failed to check encryption status', {
+        error: error.message
+      })
+      return { exists: false, error: error.message }
+    }
+  }
+
+  /**
+   * ファイルの存在確認
+   */
+  async fileExists () {
+    try {
+      await fs.access(this.config.storageFile)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * データの整合性チェック
+   */
+  async verifyDataIntegrity () {
+    try {
+      if (!this.isLoaded) {
+        await this.loadHistory()
+      }
+
+      const issues = []
+
+      // 基本的な整合性チェック
+      if (this.tweetHistory.length !== this.hashIndex.size) {
+        issues.push({
+          type: 'hash_index_mismatch',
+          message: 'Tweet count and hash index size mismatch',
+          tweetCount: this.tweetHistory.length,
+          hashCount: this.hashIndex.size
+        })
+      }
+
+      // 重複ハッシュチェック
+      const hashCounts = {}
+      this.tweetHistory.forEach((tweet, index) => {
+        if (!tweet.hash) {
+          issues.push({
+            type: 'missing_hash',
+            message: `Tweet at index ${index} missing hash`,
+            tweetId: tweet.id
+          })
+        } else {
+          hashCounts[tweet.hash] = (hashCounts[tweet.hash] || 0) + 1
+        }
+      })
+
+      Object.entries(hashCounts).forEach(([hash, count]) => {
+        if (count > 1) {
+          issues.push({
+            type: 'duplicate_hash',
+            message: `Hash ${hash} appears ${count} times`,
+            hash,
+            count
+          })
+        }
+      })
+
+      return {
+        valid: issues.length === 0,
+        issues,
+        stats: {
+          totalTweets: this.tweetHistory.length,
+          uniqueHashes: Object.keys(hashCounts).length,
+          hashIndexSize: this.hashIndex.size
+        }
+      }
+    } catch (error) {
+      return {
+        valid: false,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * セキュアなデータ削除
+   */
+  async secureDelete () {
+    try {
+      if (await this.fileExists()) {
+        // ファイルを複数回上書きしてからデリート
+        const fileSize = (await fs.stat(this.config.storageFile)).size
+        const randomData = Buffer.alloc(fileSize)
+
+        // 3回ランダムデータで上書き
+        for (let i = 0; i < 3; i++) {
+          crypto.randomFillSync(randomData)
+          await fs.writeFile(this.config.storageFile, randomData)
+        }
+
+        // ファイル削除
+        await fs.unlink(this.config.storageFile)
+
+        this.logger.info('Tweet history file securely deleted')
+      }
+
+      // メモリからも削除
+      this.tweetHistory = []
+      this.hashIndex.clear()
+      this.isLoaded = false
+      this.isDirty = false
+    } catch (error) {
+      this.logger.error('Secure delete failed', { error: error.message })
+      throw error
     }
   }
 
@@ -626,6 +839,125 @@ class TweetHistory {
     } catch (error) {
       this.logger.error('Cleanup failed', { error: error.message })
       throw error
+    }
+  }
+
+  /**
+   * 全ツイートを取得（テスト用）
+   */
+  async getAllTweets () {
+    if (!this.isLoaded) {
+      await this.loadHistory()
+    }
+    return [...this.tweetHistory]
+  }
+
+  /**
+   * ダッシュボードAPIのためのツイート取得
+   */
+  async getTweets (options = {}) {
+    if (!this.isLoaded) {
+      await this.loadHistory()
+    }
+
+    const {
+      status,
+      category,
+      startDate,
+      endDate,
+      limit = 100,
+      offset = 0
+    } = options
+
+    let filteredTweets = [...this.tweetHistory]
+
+    // ステータスフィルタ
+    if (status) {
+      if (status === 'sent') {
+        filteredTweets = filteredTweets.filter(tweet => tweet.metadata.posted === true)
+      } else if (status === 'pending') {
+        filteredTweets = filteredTweets.filter(tweet => tweet.metadata.posted === false)
+      } else if (status === 'failed') {
+        filteredTweets = filteredTweets.filter(tweet => tweet.metadata.error)
+      }
+    }
+
+    // カテゴリフィルタ
+    if (category) {
+      filteredTweets = filteredTweets.filter(tweet =>
+        tweet.metadata.category === category
+      )
+    }
+
+    // 日付フィルタ
+    if (startDate) {
+      const start = new Date(startDate)
+      filteredTweets = filteredTweets.filter(tweet =>
+        new Date(tweet.timestamp) >= start
+      )
+    }
+
+    if (endDate) {
+      const end = new Date(endDate)
+      filteredTweets = filteredTweets.filter(tweet =>
+        new Date(tweet.timestamp) <= end
+      )
+    }
+
+    // 最新順にソート
+    filteredTweets.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+
+    // ページネーション
+    const paginatedTweets = filteredTweets.slice(offset, offset + limit)
+
+    // API形式に変換
+    return paginatedTweets.map(tweet => ({
+      id: tweet.id,
+      content: tweet.text,
+      status: tweet.metadata.posted ? 'sent' : 'pending',
+      category: tweet.metadata.category || 'general',
+      createdAt: tweet.timestamp,
+      url: tweet.metadata.sourceUrl || null,
+      hashtags: tweet.metadata.tags || [],
+      platform: tweet.metadata.platform || 'twitter',
+      error: tweet.metadata.error || null
+    }))
+  }
+
+  /**
+   * ダッシュボードAPI用の統計情報取得
+   */
+  async getStatistics () {
+    if (!this.isLoaded) {
+      await this.loadHistory()
+    }
+
+    const stats = this.getStats()
+
+    // 今日のツイート数を計算
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayTweets = this.tweetHistory.filter(tweet =>
+      new Date(tweet.timestamp) >= today
+    )
+
+    // 週間ツイート数を計算
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    const weeklyTweets = this.tweetHistory.filter(tweet =>
+      new Date(tweet.timestamp) >= weekAgo
+    )
+
+    return {
+      total: stats.total.all,
+      posted: stats.posting.posted,
+      pending: stats.posting.unposted,
+      failed: this.tweetHistory.filter(tweet => tweet.metadata.error).length,
+      today: todayTweets.length,
+      thisWeek: weeklyTweets.length,
+      categories: stats.categories,
+      successRate: parseFloat(stats.posting.postingRate.replace('%', '')),
+      duplicateRate: parseFloat(stats.duplicates.uniqueRatio.replace('%', ''))
     }
   }
 }

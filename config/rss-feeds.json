@@ -2,7 +2,7 @@
   "feeds": [
     {
       "name": "ArXiv AI",
-      "url": "http://export.arxiv.org/rss/cs.AI",
+      "url": "https://export.arxiv.org/rss/cs.AI",
       "category": "research",
       "enabled": true,
       "description": "ArXiv Computer Science - Artificial Intelligence papers",

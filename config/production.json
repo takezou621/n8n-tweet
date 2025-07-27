@@ -124,6 +124,7 @@
     "tweetHistory": {
       "enabled": true,
       "storageType": "file",
+      "enableEncryption": true,
       "encryptionEnabled": true,
       "backupEnabled": true,
       "retentionDays": 365,

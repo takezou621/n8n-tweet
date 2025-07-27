@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>n8n-tweet Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="css/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-robot me-2"></i>
+                n8n-tweet Dashboard
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-tab="health">
+                            <i class="fas fa-heartbeat"></i> ヘルス
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-tab="metrics">
+                            <i class="fas fa-chart-line"></i> メトリクス
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-tab="tweets">
+                            <i class="fab fa-twitter"></i> ツイート履歴
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-tab="feeds">
+                            <i class="fas fa-rss"></i> RSSフィード
+                        </a>
+                    </li>
+                </ul>
+                <span class="navbar-text">
+                    <i class="fas fa-clock"></i>
+                    <span id="last-update">未更新</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid py-4">
+        <!-- System Health Tab -->
+        <div id="health-tab" class="tab-content active">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h2><i class="fas fa-heartbeat text-danger"></i> システムヘルス監視</h2>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card health-card">
+                        <div class="card-body text-center">
+                            <div class="health-icon">
+                                <i class="fas fa-server fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">システム</h5>
+                            <div class="status-indicator" id="system-status">
+                                <span class="badge bg-secondary">確認中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card health-card">
+                        <div class="card-body text-center">
+                            <div class="health-icon">
+                                <i class="fas fa-database fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">Redis</h5>
+                            <div class="status-indicator" id="redis-status">
+                                <span class="badge bg-secondary">確認中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card health-card">
+                        <div class="card-body text-center">
+                            <div class="health-icon">
+                                <i class="fas fa-cogs fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">n8n</h5>
+                            <div class="status-indicator" id="n8n-status">
+                                <span class="badge bg-secondary">確認中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card health-card">
+                        <div class="card-body text-center">
+                            <div class="health-icon">
+                                <i class="fab fa-twitter fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">Twitter API</h5>
+                            <div class="status-indicator" id="twitter-status">
+                                <span class="badge bg-secondary">確認中...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Health Information -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-info-circle"></i> 詳細ヘルス情報</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="health-details" class="table-responsive">
+                                <p class="text-muted">ヘルス情報を読み込み中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Tab -->
+        <div id="metrics-tab" class="tab-content">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h2><i class="fas fa-chart-line text-primary"></i> システムメトリクス</h2>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card metric-card">
+                        <div class="card-body text-center">
+                            <div class="metric-icon">
+                                <i class="fas fa-memory fa-2x text-info"></i>
+                            </div>
+                            <h5 class="card-title">メモリ使用量</h5>
+                            <div class="metric-value" id="memory-usage">
+                                <span class="display-6">--</span>
+                                <small class="text-muted">MB</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card metric-card">
+                        <div class="card-body text-center">
+                            <div class="metric-icon">
+                                <i class="fas fa-microchip fa-2x text-warning"></i>
+                            </div>
+                            <h5 class="card-title">CPU使用率</h5>
+                            <div class="metric-value" id="cpu-usage">
+                                <span class="display-6">--</span>
+                                <small class="text-muted">%</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card metric-card">
+                        <div class="card-body text-center">
+                            <div class="metric-icon">
+                                <i class="fas fa-clock fa-2x text-success"></i>
+                            </div>
+                            <h5 class="card-title">稼働時間</h5>
+                            <div class="metric-value" id="uptime">
+                                <span class="display-6">--</span>
+                                <small class="text-muted">時間</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="card metric-card">
+                        <div class="card-body text-center">
+                            <div class="metric-icon">
+                                <i class="fas fa-chart-pie fa-2x text-danger"></i>
+                            </div>
+                            <h5 class="card-title">今日のツイート</h5>
+                            <div class="metric-value" id="tweets-today">
+                                <span class="display-6">--</span>
+                                <small class="text-muted">件</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Container -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-area"></i> パフォーマンスチャート</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="metrics-chart">
+                                <p class="text-muted text-center">メトリクスチャートを読み込み中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tweets Tab -->
+        <div id="tweets-tab" class="tab-content">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h2><i class="fab fa-twitter text-info"></i> ツイート履歴</h2>
+                </div>
+            </div>
+            
+            <!-- Tweet Filters -->
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <select class="form-select" id="tweet-status-filter">
+                        <option value="">すべてのステータス</option>
+                        <option value="sent">送信済み</option>
+                        <option value="pending">送信待ち</option>
+                        <option value="failed">失敗</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" id="tweet-category-filter">
+                        <option value="">すべてのカテゴリ</option>
+                        <option value="ai">AI</option>
+                        <option value="tech">テクノロジー</option>
+                        <option value="research">研究</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="date" class="form-control" id="tweet-date-filter">
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary" onclick="loadTweets()">
+                        <i class="fas fa-search"></i> フィルター適用
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tweet List -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-list"></i> ツイート一覧</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="tweets-list">
+                                <p class="text-muted">ツイート履歴を読み込み中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RSS Feeds Tab -->
+        <div id="feeds-tab" class="tab-content">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h2><i class="fas fa-rss text-warning"></i> RSSフィード状況</h2>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-feed"></i> フィード一覧</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="feeds-list" class="table-responsive">
+                                <p class="text-muted">RSSフィード情報を読み込み中...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alert-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

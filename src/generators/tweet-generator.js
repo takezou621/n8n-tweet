@@ -385,37 +385,96 @@ class TweetGenerator {
    * @returns {string} 最適化されたコンテンツ
    */
   optimizeTweetLength (content) {
-    if (content.length <= this.config.maxLength) {
-      return content
+    // Remove extra whitespace and normalize line breaks
+    const normalized = content
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s*\n/g, '\n')
+      .trim()
+
+    if (normalized.length <= this.config.maxLength) {
+      return normalized
     }
 
-    // Calculate available space (reserve space for URL)
-    const urlSpace = this.config.includeUrl ? this.config.reserveUrlLength + 1 : 0
-    const availableLength = this.config.maxLength - urlSpace
+    // Extract URL if present
+    const urlMatch = normalized.match(/(https?:\/\/[^\s]+)/i)
+    const hasUrl = urlMatch && this.config.includeUrl
+    const actualUrl = hasUrl ? urlMatch[0] : ''
+    const urlReservedLength = hasUrl ? this.config.reserveUrlLength : 0
 
-    // Split content into parts
-    const parts = content.split('\n')
-    let optimized = ''
+    // Extract hashtags
+    const hashtagMatches = normalized.match(/#\w+(?:\s+#\w+)*/g)
+    const hashtags = hashtagMatches ? hashtagMatches.join(' ') : ''
 
-    for (const part of parts) {
-      if (part.includes('http')) {
-        // Keep URLs as-is
-        optimized += part + '\n'
+    // Remove URL and hashtags from content for processing
+    const contentWithoutUrlAndHashtags = normalized
+      .replace(/(https?:\/\/[^\s]+)/gi, '')
+      .replace(/#\w+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+
+    // Calculate available space for main content
+    const hashtagLength = hashtags.length + (hashtags ? 1 : 0) // +1 for space before hashtags
+    const urlSpaceLength = hasUrl ? urlReservedLength + 1 : 0 // +1 for space before URL
+    const availableForContent = this.config.maxLength - hashtagLength - urlSpaceLength
+
+    // Truncate main content if necessary
+    let finalContent = contentWithoutUrlAndHashtags
+    if (finalContent.length > availableForContent) {
+      const maxContentLength = availableForContent - 3 // Reserve for "..."
+      if (maxContentLength > 10) {
+        // Try to break at word boundary
+        let truncated = finalContent.substring(0, maxContentLength)
+        const lastSpace = truncated.lastIndexOf(' ')
+        if (lastSpace > maxContentLength * 0.7) {
+          truncated = truncated.substring(0, lastSpace)
+        }
+        finalContent = truncated + '...'
       } else {
-        // Truncate other parts if needed
-        if ((optimized + part).length > availableLength) {
-          const remainingSpace = availableLength - optimized.length - 3 // Reserve for "..."
-          if (remainingSpace > 10) {
-            optimized += part.substring(0, remainingSpace) + '...\n'
+        // If we can't fit meaningful content, create minimal tweet
+        finalContent = '🤖 AI Update...'
+      }
+    }
+
+    // Rebuild tweet with proper spacing
+    let result = finalContent
+    if (hashtags) {
+      result += (result ? ' ' : '') + hashtags
+    }
+    if (hasUrl) {
+      result += (result ? ' ' : '') + actualUrl
+    }
+
+    // Final safety check - if still too long, aggressively truncate
+    if (result.length > this.config.maxLength) {
+      const excessLength = result.length - this.config.maxLength
+      if (finalContent.length > excessLength + 3) {
+        finalContent = finalContent.substring(0, finalContent.length - excessLength - 3) + '...'
+        result = finalContent
+        if (hashtags) {
+          result += ' ' + hashtags
+        }
+        if (hasUrl) {
+          result += ' ' + actualUrl
+        }
+      } else {
+        // Emergency truncation - prioritize URL and at least one hashtag
+        const emergency = '🤖 AI'
+        result = emergency
+        if (hashtags) {
+          const firstHashtag = hashtags.split(' ')[0]
+          const emergencyPlusHashtagLength = emergency.length + 1 + firstHashtag.length +
+            urlSpaceLength
+          if (emergencyPlusHashtagLength <= this.config.maxLength) {
+            result += ' ' + firstHashtag
           }
-          break
-        } else {
-          optimized += part + '\n'
+        }
+        if (hasUrl && result.length + 1 + urlReservedLength <= this.config.maxLength) {
+          result += ' ' + actualUrl
         }
       }
     }
 
-    return optimized.trim()
+    return result.trim()
   }
 
   /**

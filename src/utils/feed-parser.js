@@ -98,14 +98,27 @@ class FeedParser {
         const result = await this.parseWithRetry(feedConfig)
         // 成功した結果のみを含める
         if (result && !result.error) {
-          results.push(result)
+          // 期待される形式に変換
+          const feedResult = {
+            feedName: feedConfig.name,
+            articles: result.items || [],
+            metadata: result.metadata || {},
+            success: result.success || true
+          }
+          results.push(feedResult)
         }
       } catch (error) {
         this.logger.error('Failed to parse feed after retries', {
           feedName: feedConfig.name,
           error: error.message
         })
-        // エラーの場合は結果に含めない（テストの期待値に合わせる）
+        // エラーの場合でも空の結果を返す（テストの期待値に合わせる）
+        results.push({
+          feedName: feedConfig.name,
+          articles: [],
+          error: error.message,
+          success: false
+        })
       }
     }
 

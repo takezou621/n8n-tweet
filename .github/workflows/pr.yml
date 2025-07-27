@@ -1,0 +1,319 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
+
+# Cancel in-progress runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '18'
+  CACHE_DEPENDENCY_PATH: package-lock.json
+
+jobs:
+  # Skip if PR is draft
+  check-draft:
+    name: Check Draft Status
+    runs-on: ubuntu-latest
+    outputs:
+      is-draft: ${{ steps.draft-check.outputs.is-draft }}
+    
+    steps:
+    - name: Check if PR is draft
+      id: draft-check
+      run: |
+        if [[ "${{ github.event.pull_request.draft }}" == "true" ]]; then
+          echo "is-draft=true" >> $GITHUB_OUTPUT
+          echo "PR is draft - skipping full validation"
+        else
+          echo "is-draft=false" >> $GITHUB_OUTPUT
+          echo "PR is ready for review - running full validation"
+        fi
+
+  # Quick validation for draft PRs
+  quick-check:
+    name: Quick Validation
+    runs-on: ubuntu-latest
+    needs: check-draft
+    if: needs.check-draft.outputs.is-draft == 'true'
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ env.CACHE_DEPENDENCY_PATH }}
+
+    - name: Install dependencies
+      run: npm ci --prefer-offline --no-audit
+
+    - name: Quick lint check
+      run: npx eslint src/ tests/ --format=compact --max-warnings=5
+      env:
+        NODE_ENV: test
+
+    - name: Check package.json syntax
+      run: node -pe 'JSON.parse(require("fs").readFileSync("package.json", "utf8"))'
+
+  # Full validation for ready PRs
+  full-validation:
+    name: Full PR Validation
+    runs-on: ubuntu-latest
+    needs: check-draft
+    if: needs.check-draft.outputs.is-draft == 'false'
+    timeout-minutes: 20
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for better diffs
+
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ env.CACHE_DEPENDENCY_PATH }}
+
+    - name: Install dependencies
+      run: npm ci --prefer-offline --no-audit
+
+    - name: Wait for Redis
+      run: timeout 30 bash -c 'until node scripts/redis-health-check.js; do sleep 1; done'
+
+    # Code quality checks
+    - name: Run ESLint with PR-specific rules
+      run: npx eslint src/ tests/ --format=stylish --max-warnings=0
+      env:
+        NODE_ENV: test
+
+    - name: Check code formatting
+      run: |
+        if command -v prettier &> /dev/null; then
+          npx prettier --check src/ tests/
+        else
+          echo "Prettier not found - skipping format check"
+        fi
+
+    - name: Analyze changed files
+      run: |
+        # Get list of changed JavaScript files
+        git diff --name-only origin/main...HEAD | grep -E '\.(js|json)$' || true
+        
+        # Check if any test files were added/modified
+        CHANGED_TESTS=$(git diff --name-only origin/main...HEAD | grep -E 'test\.(js)$' || true)
+        if [[ -z "$CHANGED_TESTS" ]]; then
+          echo "Warning: No test files were modified in this PR"
+        else
+          echo "Modified test files: $CHANGED_TESTS"
+        fi
+
+    # Security and dependency checks
+    - name: Check for sensitive data
+      run: |
+        # Simple check for common secrets patterns
+        if git diff origin/main...HEAD | grep -iE '(password|secret|key|token).*=.*[\'"][a-zA-Z0-9]'; then
+          echo "Warning: Potential sensitive data detected in changes"
+          echo "Please review and ensure no secrets are committed"
+        fi
+
+    - name: Dependency vulnerability check
+      run: npm audit --audit-level=moderate
+
+    # Testing
+    - name: Run unit tests for changed files
+      run: |
+        # Run tests related to changed files
+        CHANGED_FILES=$(git diff --name-only origin/main...HEAD | grep -E '\.js$' | tr '\n' ' ')
+        if [[ -n "$CHANGED_FILES" ]]; then
+          npm run test:unit -- --findRelatedTests $CHANGED_FILES --passWithNoTests
+        else
+          echo "No JavaScript files changed - skipping related tests"
+        fi
+      env:
+        NODE_ENV: test
+        CI: true
+        REDIS_URL: redis://localhost:6379
+
+    - name: Run integration tests
+      run: npm run test:integration
+      env:
+        NODE_ENV: test
+        CI: true
+        REDIS_URL: redis://localhost:6379
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+
+    # Quick performance check
+    - name: Basic performance check
+      run: |
+        # Run a subset of performance tests for PRs
+        if [[ -f "tests/performance/basic.test.js" ]]; then
+          npm run test:performance -- --testPathPattern=basic
+        else
+          echo "No basic performance tests found - skipping"
+        fi
+      env:
+        NODE_ENV: test
+        CI: true
+
+  # PR-specific checks
+  pr-checks:
+    name: PR Specific Checks
+    runs-on: ubuntu-latest
+    needs: check-draft
+    if: needs.check-draft.outputs.is-draft == 'false'
+    timeout-minutes: 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check PR title format
+      run: |
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        # Check if PR title follows conventional commit format
+        if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .+ ]]; then
+          echo "PR title should follow conventional commit format:"
+          echo "type(scope): description"
+          echo "Current title: $PR_TITLE"
+          exit 1
+        fi
+        echo "PR title format is valid: $PR_TITLE"
+
+    - name: Check PR description
+      run: |
+        if [[ -z "${{ github.event.pull_request.body }}" ]]; then
+          echo "Warning: PR description is empty"
+          echo "Consider adding a description to help reviewers"
+        else
+          echo "PR description provided"
+        fi
+
+    - name: Check file size limits
+      run: |
+        # Check for large files that might have been added
+        git diff --name-only origin/main...HEAD | while read file; do
+          if [[ -f "$file" && $(wc -c < "$file") -gt 1048576 ]]; then  # 1MB limit
+            echo "Warning: Large file detected: $file ($(du -h "$file" | cut -f1))"
+          fi
+        done
+
+    - name: Check for TODO/FIXME comments
+      run: |
+        # Check if new TODOs or FIXMEs were added
+        NEW_TODOS=$(git diff origin/main...HEAD | grep -E '^\+.*\b(TODO|FIXME|XXX|HACK)\b' || true)
+        if [[ -n "$NEW_TODOS" ]]; then
+          echo "New TODO/FIXME comments found:"
+          echo "$NEW_TODOS"
+          echo "Consider creating GitHub issues for these items"
+        fi
+
+  # Build verification
+  build-check:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    needs: [check-draft, full-validation]
+    if: needs.check-draft.outputs.is-draft == 'false' && needs.full-validation.result == 'success'
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ env.CACHE_DEPENDENCY_PATH }}
+
+    - name: Install dependencies
+      run: npm ci --prefer-offline --no-audit
+
+    - name: Run build process
+      run: npm run build
+
+    - name: Verify application starts
+      run: |
+        # Test that the application can start without errors
+        timeout 30 npm start &
+        APP_PID=$!
+        sleep 10
+        if kill -0 $APP_PID 2>/dev/null; then
+          echo "Application started successfully"
+          kill $APP_PID
+        else
+          echo "Application failed to start"
+          exit 1
+        fi
+
+  # Final status
+  pr-validation-complete:
+    name: PR Validation Complete
+    runs-on: ubuntu-latest
+    needs: [check-draft, quick-check, full-validation, pr-checks, build-check]
+    if: always()
+
+    steps:
+    - name: Report validation results
+      run: |
+        echo "PR Validation Summary:"
+        echo "====================="
+        
+        if [[ "${{ needs.check-draft.outputs.is-draft }}" == "true" ]]; then
+          echo "✓ Draft PR - Quick validation completed"
+          if [[ "${{ needs.quick-check.result }}" == "success" ]]; then
+            echo "✓ Quick checks passed"
+          else
+            echo "✗ Quick checks failed"
+            exit 1
+          fi
+        else
+          echo "✓ Ready PR - Full validation completed"
+          
+          # Check all required jobs for ready PRs
+          if [[ "${{ needs.full-validation.result }}" != "success" ]]; then
+            echo "✗ Full validation failed"
+            exit 1
+          fi
+          
+          if [[ "${{ needs.pr-checks.result }}" != "success" ]]; then
+            echo "✗ PR checks failed"
+            exit 1
+          fi
+          
+          if [[ "${{ needs.build-check.result }}" != "success" ]]; then
+            echo "✗ Build verification failed"
+            exit 1
+          fi
+          
+          echo "✓ All validations passed - PR is ready for review"
+        fi
+
+    - name: Update PR status
+      if: failure()
+      run: |
+        echo "PR validation failed. Please check the logs and fix any issues."
+        exit 1

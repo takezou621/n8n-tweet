@@ -1,0 +1,112 @@
+{
+  "startTime": "2025-07-27T11:38:32.392Z",
+  "feeds": [
+    {
+      "feedName": "MIT Technology Review",
+      "feedUrl": "https://www.technologyreview.com/feed/",
+      "success": true,
+      "articlesCount": 10,
+      "duration": 78,
+      "timestamp": "2025-07-27T11:38:32.474Z",
+      "sampleArticle": {
+        "title": "The Download: saving the US climate programs, and America’s AI protections are under threat",
+        "hasDescription": true,
+        "hasLink": true,
+        "hasPubDate": true
+      }
+    },
+    {
+      "feedName": "Hacker News",
+      "feedUrl": "https://hnrss.org/frontpage",
+      "success": true,
+      "articlesCount": 20,
+      "duration": 986,
+      "timestamp": "2025-07-27T11:38:33.460Z",
+      "sampleArticle": {
+        "title": "Jeff Bezos doesn't believe in PowerPoint, and his employees agree",
+        "hasDescription": true,
+        "hasLink": true,
+        "hasPubDate": true
+      }
+    },
+    {
+      "feedName": "OpenAI Blog",
+      "feedUrl": "https://openai.com/news/rss.xml",
+      "success": true,
+      "articlesCount": 599,
+      "duration": 130,
+      "timestamp": "2025-07-27T11:38:33.590Z",
+      "sampleArticle": {
+        "title": "Resolving digital threats 100x faster with OpenAI",
+        "hasDescription": true,
+        "hasLink": true,
+        "hasPubDate": true
+      }
+    }
+  ],
+  "performance": {
+    "concurrent": {
+      "totalFeeds": 3,
+      "successfulFeeds": 3,
+      "totalArticles": 629,
+      "totalDuration": 272,
+      "averageDurationPerFeed": 91,
+      "efficiency": true
+    },
+    "workflow": {
+      "originalArticles": 10,
+      "filteredArticles": 3,
+      "filterRatio": 0.3,
+      "tweetGenerated": true,
+      "isDuplicate": false,
+      "rateLimitPassed": true,
+      "postAttempted": true,
+      "postSuccessful": false,
+      "totalDuration": 14
+    },
+    "errorHandling": [
+      {
+        "testName": "Invalid URL",
+        "errorHandled": "Max retry attempts exceeded: Failed to parse RSS feed: Status code 404",
+        "duration": 3239,
+        "result": 1
+      },
+      {
+        "testName": "Timeout",
+        "errorHandled": "Max retry attempts exceeded: Failed to parse RSS feed: Request timed out after 1ms",
+        "duration": 2007,
+        "result": 1
+      }
+    ],
+    "bulk": {
+      "bulkFiltering": {
+        "totalArticles": 100,
+        "filteredArticles": 100,
+        "duration": 2,
+        "articlesPerSecond": 50000
+      },
+      "tweetGeneration": {
+        "tweetsGenerated": 10,
+        "duration": 1,
+        "averageDuration": 0
+      },
+      "memory": {
+        "heapUsedDelta": 1,
+        "heapTotalDelta": 0
+      }
+    }
+  },
+  "errors": [],
+  "summary": {
+    "totalDuration": "7s",
+    "feedsTotal": 3,
+    "feedsTested": 3,
+    "feedsSuccessful": 3,
+    "feedsFailed": 0,
+    "totalArticlesRetrieved": 629,
+    "errorsTotal": 0,
+    "performanceTests": 4
+  },
+  "endTime": "2025-07-27T11:38:39.128Z",
+  "totalDuration": 6736
+}
