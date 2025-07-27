@@ -1,9 +1,9 @@
 /**
  * 実際のユースケースに基づいたE2Eテスト
- * 
+ *
  * 3つの主要ユースケースをテスト:
  * 1. AI研究者のニュース配信シナリオ
- * 2. システム管理者の監視シナリオ  
+ * 2. システム管理者の監視シナリオ
  * 3. 非技術者ユーザーの利用シナリオ
  */
 
@@ -90,7 +90,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
     jest.clearAllMocks()
   })
 
-  async function initializeSystemComponents() {
+  async function initializeSystemComponents () {
     feedParser = new FeedParser({
       enableCache: false,
       logger
@@ -176,7 +176,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
 
       // Phase 2: AI関連度の高い記事をフィルタリング
       const allArticles = feedResults.flatMap(result => result.articles)
-      
+
       // フィルタリングのモック（AI関連記事として高スコア付与）
       jest.spyOn(contentFilter, 'filterRelevantContent').mockResolvedValue(
         allArticles.map(article => ({
@@ -188,16 +188,16 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
       )
 
       const filteredArticles = await contentFilter.filterRelevantContent(allArticles)
-      
+
       expect(filteredArticles.length).toBe(2)
       expect(filteredArticles[0].relevanceScore).toBeGreaterThan(0.8)
       expect(filteredArticles[0].categories).toContain('ai')
 
       // Phase 3: 自動でツイート文章を生成
       const selectedArticle = filteredArticles[0]
-      
+
       jest.spyOn(tweetGenerator, 'generateTweet').mockResolvedValue({
-        text: `🤖 GPT-5: Revolutionary Language Model Architecture - OpenAI announces groundbreaking improvements in language understanding #AI #GPT5 #MachineLearning`,
+        text: '🤖 GPT-5: Revolutionary Language Model Architecture - OpenAI announces groundbreaking improvements in language understanding #AI #GPT5 #MachineLearning',
         hashtags: ['#AI', '#GPT5', '#MachineLearning'],
         url: selectedArticle.url,
         metadata: {
@@ -208,7 +208,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
       })
 
       const generatedTweet = await tweetGenerator.generateTweet(selectedArticle)
-      
+
       expect(generatedTweet).toBeDefined()
       expect(generatedTweet.text.length).toBeLessThanOrEqual(280)
       expect(generatedTweet.hashtags).toContain('#AI')
@@ -226,7 +226,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
       })
 
       const postResult = await twitterClient.postTweet(generatedTweet.text)
-      
+
       expect(postResult.success).toBe(true)
       expect(postResult.tweetId).toBeDefined()
 
@@ -339,7 +339,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
         })
 
         const componentHealth = await healthChecker.checkComponent(component)
-        
+
         expect(componentHealth).toBeDefined()
         expect(componentHealth.status).toBe('healthy')
         expect(componentHealth.responseTime).toBeGreaterThan(0)
@@ -360,7 +360,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
       })
 
       const healthStatus = await healthChecker.performHealthCheck()
-      
+
       expect(healthStatus.overall.status).toBe('degraded')
       expect(healthStatus.components.tweetGenerator.status).toBe('unhealthy')
       expect(healthStatus.components.tweetGenerator.error).toBeDefined()
@@ -379,7 +379,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
       expect(title).toBe('n8n-tweet Dashboard')
 
       // ナビゲーション要素の確認
-      const navItems = await page.$$eval('.nav-link', links => 
+      const navItems = await page.$$eval('.nav-link', links =>
         links.map(link => link.textContent.trim())
       )
       expect(navItems).toContain('ヘルス')
@@ -388,7 +388,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
       expect(navItems).toContain('RSSフィード')
 
       // デフォルトでヘルスタブが表示されることを確認
-      const activeTab = await page.$eval('#health-tab', el => 
+      const activeTab = await page.$eval('#health-tab', el =>
         el.classList.contains('active')
       )
       expect(activeTab).toBe(true)
@@ -409,11 +409,11 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
 
       // メトリクスタブへの切り替え
       await page.click('[data-tab="metrics"]')
-      
+
       // メトリクスタブが表示されることを確認
       await page.waitForSelector('#metrics-tab.active', { timeout: 5000 })
-      
-      const metricsTabActive = await page.$eval('#metrics-tab', el => 
+
+      const metricsTabActive = await page.$eval('#metrics-tab', el =>
         el.classList.contains('active')
       )
       expect(metricsTabActive).toBe(true)

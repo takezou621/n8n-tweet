@@ -19,7 +19,7 @@ const { createLogger } = require('../../src/utils/logger')
 describe('n8n-tweet システム包括的E2Eテスト', () => {
   let testDataDir
   let logger
-  let testResults = {
+  const testResults = {
     phases: {},
     performance: {},
     quality: {},
@@ -47,7 +47,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
     // テスト結果レポートの生成
     const reportPath = path.join(testDataDir, 'e2e-test-report.json')
     fs.writeFileSync(reportPath, JSON.stringify(testResults, null, 2))
-    
+
     logger.info('包括的E2Eテスト完了', {
       timestamp: new Date().toISOString(),
       testResults,
@@ -63,7 +63,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
   describe('1. RSS フィード処理・解析', () => {
     test('実際のRSSフィードデータ取得と解析', async () => {
       const phaseStart = Date.now()
-      
+
       try {
         const feedParser = new FeedParser({
           timeout: 30000,
@@ -88,7 +88,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         ]
 
         const feedResults = await feedParser.parseMultipleFeeds(testFeeds)
-        
+
         // 結果の基本検証
         expect(Array.isArray(feedResults)).toBe(true)
         expect(feedResults.length).toBeGreaterThanOrEqual(0)
@@ -100,17 +100,21 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
           if (result && !result.error) {
             successfulFeeds++
             totalArticles += result.articles?.length || 0
-            
-            // 記事構造の検証
-            if (result.articles && result.articles.length > 0) {
-              const article = result.articles[0]
-              expect(article).toHaveProperty('title')
-              expect(article).toHaveProperty('link')
-              expect(typeof article.title).toBe('string')
-              expect(typeof article.link).toBe('string')
-            }
           }
         })
+
+        // 記事構造の検証 - 成功したフィードの最初の記事をテスト
+        const successfulFeedsWithArticles = feedResults.filter(result =>
+          result && !result.error && result.articles && result.articles.length > 0
+        )
+
+        if (successfulFeedsWithArticles.length > 0) {
+          const article = successfulFeedsWithArticles[0].articles[0]
+          expect(article).toHaveProperty('title')
+          expect(article).toHaveProperty('link')
+          expect(typeof article.title).toBe('string')
+          expect(typeof article.link).toBe('string')
+        }
 
         testResults.phases.rssProcessing = {
           duration: Date.now() - phaseStart,
@@ -125,7 +129,6 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
         // 少なくとも基本的な処理が機能することを確認
         expect(feedResults).toBeDefined()
-
       } catch (error) {
         testResults.phases.rssProcessing = {
           duration: Date.now() - phaseStart,
@@ -136,7 +139,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         // ネットワークエラーの場合はテストをスキップ
         if (error.message.includes('ENOTFOUND') || error.message.includes('timeout')) {
           logger.warn('ネットワーク接続問題によりRSSテストをスキップ', { error: error.message })
-          expect(true).toBe(true) // テスト通過
+          // ネットワークエラーは予想される動作なので、テストを通過させる
           return
         }
 
@@ -148,7 +151,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
   describe('2. AI関連度フィルタリング・スコアリング', () => {
     test('コンテンツのAI関連度評価とフィルタリング', async () => {
       const phaseStart = Date.now()
-      
+
       try {
         const contentFilter = new ContentFilter({
           scoreThreshold: 0.5,
@@ -201,19 +204,22 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         // フィルタリング結果の検証
         expect(Array.isArray(filteredArticles)).toBe(true)
         expect(filteredArticles.length).toBeGreaterThan(0)
-        
+
         // AI関連記事が適切にフィルタリングされることを確認
         filteredArticles.forEach(article => {
           expect(article).toHaveProperty('relevanceScore')
           expect(article.relevanceScore).toBeGreaterThan(0.4)
-          
-          if (article.categories) {
-            expect(article.categories).toContain('ai')
-          }
         })
 
-        logger.info('コンテンツフィルタリングフェーズ完了', testResults.phases.contentFiltering)
+        // カテゴリが設定されている記事のみをテスト
+        const articlesWithCategories = filteredArticles.filter(article => article.categories)
+        if (articlesWithCategories.length > 0) {
+          articlesWithCategories.forEach(article => {
+            expect(article.categories).toContain('ai')
+          })
+        }
 
+        logger.info('コンテンツフィルタリングフェーズ完了', testResults.phases.contentFiltering)
       } catch (error) {
         testResults.phases.contentFiltering = {
           duration: Date.now() - phaseStart,
@@ -228,7 +234,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
   describe('3. ツイート生成・最適化', () => {
     test('280文字制限内でのツイート生成', async () => {
       const phaseStart = Date.now()
-      
+
       try {
         const tweetGenerator = new TweetGenerator({
           maxLength: 280,
@@ -263,7 +269,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         expect(typeof tweet.content).toBe('string')
         expect(tweet.content.length).toBeGreaterThan(50) // 最低限の内容
         expect(tweet.content.length).toBeLessThanOrEqual(280) // Twitter制限
-        
+
         expect(tweet).toHaveProperty('metadata')
         expect(tweet.metadata).toHaveProperty('hashtags')
         expect(Array.isArray(tweet.metadata.hashtags)).toBe(true)
@@ -276,7 +282,6 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
           ...testResults.phases.tweetGeneration,
           generatedTweet: tweet.content.substring(0, 100) + '...'
         })
-
       } catch (error) {
         testResults.phases.tweetGeneration = {
           duration: Date.now() - phaseStart,
@@ -291,7 +296,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
   describe('4. Twitter API統合（ドライラン）', () => {
     test('Twitter API接続・認証・投稿準備', async () => {
       const phaseStart = Date.now()
-      
+
       try {
         const twitterClient = new TwitterClient({
           credentials: {
@@ -321,14 +326,16 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         // 結果の検証
         expect(postResult).toBeDefined()
         expect(postResult).toHaveProperty('success')
-        
-        // ドライランモードなので成功扱い
+
+        // ドライランモードで成功した場合のtweetIdを検証
         if (postResult.success) {
           expect(postResult).toHaveProperty('tweetId')
+        } else {
+          // 失敗した場合はエラー情報が含まれる
+          expect(postResult).toHaveProperty('error')
         }
 
         logger.info('Twitter統合フェーズ完了', testResults.phases.twitterIntegration)
-
       } catch (error) {
         testResults.phases.twitterIntegration = {
           duration: Date.now() - phaseStart,
@@ -343,7 +350,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
   describe('5. レート制限・重複検出', () => {
     test('レート制限チェックと重複投稿防止', async () => {
       const phaseStart = Date.now()
-      
+
       try {
         const rateLimiter = new RateLimiter({
           limits: {
@@ -392,7 +399,6 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         }
 
         logger.info('レート制限・重複検出フェーズ完了', testResults.phases.rateLimitAndDuplication)
-
       } catch (error) {
         testResults.phases.rateLimitAndDuplication = {
           duration: Date.now() - phaseStart,
@@ -407,7 +413,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
   describe('6. エラーハンドリング・回復性', () => {
     test('ネットワークエラー・API障害への対応', async () => {
       const phaseStart = Date.now()
-      
+
       try {
         const feedParser = new FeedParser({
           timeout: 5000, // 短いタイムアウト
@@ -427,14 +433,16 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
         // エラーが適切に処理されることを確認
         const feedResults = await feedParser.parseMultipleFeeds(invalidFeeds)
-        
+
         expect(Array.isArray(feedResults)).toBe(true)
-        
+
         // エラー時の適切な処理を確認
+        expect(feedResults.length).toBeGreaterThanOrEqual(0)
+
         if (feedResults.length > 0) {
           const result = feedResults[0]
           expect(result).toHaveProperty('feedName')
-          // エラー時は空の記事配列またはエラー情報
+          // エラー時は空の記事配列またはエラー情報が含まれる
           expect(result.articles || result.error).toBeDefined()
         }
 
@@ -446,7 +454,6 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         }
 
         logger.info('エラーハンドリングフェーズ完了', testResults.phases.errorHandling)
-
       } catch (error) {
         // 予期されるエラー（ネットワーク関連）の場合は成功扱い
         if (error.message.includes('ENOTFOUND') || error.message.includes('timeout')) {
@@ -472,7 +479,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
   describe('7. 統合ワークフロー・パフォーマンス', () => {
     test('End-to-End完全ワークフロー性能測定', async () => {
       const workflowStart = Date.now()
-      
+
       try {
         // 各コンポーネントの初期化
         const feedParser = new FeedParser({ logger })
@@ -548,7 +555,6 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         expect(postTime).toBeLessThan(2000) // 2秒以内
 
         logger.info('完全ワークフロー性能測定完了', testResults.performance)
-
       } catch (error) {
         testResults.performance = {
           success: false,
@@ -563,10 +569,10 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
   describe('8. 品質メトリクス・検証', () => {
     test('生成コンテンツの品質評価', async () => {
       const qualityStart = Date.now()
-      
+
       try {
         const tweetGenerator = new TweetGenerator({ logger })
-        
+
         const qualityTestArticles = [
           {
             title: 'Breakthrough in Quantum Machine Learning Algorithms',
@@ -598,16 +604,16 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
         for (const article of qualityTestArticles) {
           const tweet = await tweetGenerator.generateTweet(article)
-          
+
           if (tweet) {
             totalLength += tweet.content.length
             totalEngagement += tweet.metadata.engagementScore || 0
             totalHashtags += tweet.metadata.hashtags?.length || 0
-            
+
             if (tweet.content.toLowerCase().match(/ai|artificial intelligence|machine learning|neural|algorithm/)) {
               aiRelevantCount++
             }
-            
+
             if (tweet.content.length <= 280) {
               lengthCompliantCount++
             }
@@ -626,10 +632,10 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
           metrics: qualityMetrics,
           standards: {
             averageLengthTarget: '150-250 characters',
-                minEngagementScore: 0.5,
-                minHashtagUsage: 1,
-                minAiRelevance: 0.8,
-                lengthComplianceTarget: 1.0
+            minEngagementScore: 0.5,
+            minHashtagUsage: 1,
+            minAiRelevance: 0.8,
+            lengthComplianceTarget: 1.0
           }
         }
 
@@ -641,7 +647,6 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         expect(qualityMetrics.lengthCompliance).toBe(1.0)
 
         logger.info('品質メトリクス評価完了', testResults.quality)
-
       } catch (error) {
         testResults.quality = {
           duration: Date.now() - qualityStart,
