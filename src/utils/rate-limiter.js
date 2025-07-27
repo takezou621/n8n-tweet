@@ -1,335 +1,312 @@
-/**
- * Rate Limiter - Twitter API レート制限管理
- * Twitter API v2のレート制限を適切に管理し、制限に引っかからないように制御
- */
+const { createLogger } = require('./logger')
 
 class RateLimiter {
   constructor (config = {}) {
-    // Twitter API v2のデフォルトレート制限設定
     this.limits = {
-      tweets: {
-        perHour: 300, // 1時間あたりツイート投稿数
-        perDay: 2400, // 1日あたりツイート投稿数
-        perMonth: 50000 // 1ヶ月あたりツイート投稿数
-      },
-      reads: {
-        per15min: 75, // 15分あたり読み込み回数
-        perHour: 300 // 1時間あたり読み込み回数
-      },
-      ...config.limits
+      tweetsPerHour: 50,
+      tweetsPerDay: 1000,
+      requestsPerMinute: 100,
+      cooldownPeriod: 15,
+      ...config
     }
 
-    // 現在の使用状況を追跡
-    this.usage = {
-      tweets: {
-        hour: { count: 0, resetTime: this.getNextHour() },
-        day: { count: 0, resetTime: this.getNextDay() },
-        month: { count: 0, resetTime: this.getNextMonth() }
-      },
-      reads: {
-        quarter: { count: 0, resetTime: this.getNext15Min() },
-        hour: { count: 0, resetTime: this.getNextHour() }
-      }
+    this.logger = createLogger('rate-limiter', { enableConsole: false })
+
+    // リクエスト履歴を管理
+    this.requestHistory = {
+      tweets: [],
+      requests: []
     }
 
-    // ログ設定
-    this.enableLogging = config.enableLogging || true
-    this.logger = config.logger || console
+    // 統計情報
+    this.stats = {
+      tweets: { total: 0, successful: 0, failed: 0, history: [] },
+      requests: { total: 0, successful: 0, failed: 0, history: [] }
+    }
+
+    // バックオフ管理
+    this.backoffCounters = {
+      tweets: 0,
+      requests: 0
+    }
+
+    // 時間窓設定（ミリ秒）
+    this.timeWindows = {
+      minute: config.timeWindowMinute || 60 * 1000,
+      hour: config.timeWindowHour || 60 * 60 * 1000,
+      day: config.timeWindowDay || 24 * 60 * 60 * 1000
+    }
   }
 
-  /**
-   * ツイート投稿前のレート制限チェック
-   * @returns {Object} { allowed: boolean, waitTime: number, reason: string }
-   */
-  async checkTweetLimit () {
-    this.resetExpiredCounters()
+  async checkLimit (type = 'requests') {
+    try {
+      const now = Date.now()
+      this.cleanOldRecords(type, now)
 
-    const checks = [
-      {
-        name: 'hourly',
-        current: this.usage.tweets.hour.count,
-        limit: this.limits.tweets.perHour,
-        resetTime: this.usage.tweets.hour.resetTime
-      },
-      {
-        name: 'daily',
-        current: this.usage.tweets.day.count,
-        limit: this.limits.tweets.perDay,
-        resetTime: this.usage.tweets.day.resetTime
-      },
-      {
-        name: 'monthly',
-        current: this.usage.tweets.month.count,
-        limit: this.limits.tweets.perMonth,
-        resetTime: this.usage.tweets.month.resetTime
-      }
-    ]
+      const history = this.requestHistory[type] || []
 
-    for (const check of checks) {
-      if (check.current >= check.limit) {
-        const waitTime = check.resetTime - Date.now()
-
-        if (this.enableLogging) {
-          this.logger.warn(`Twitter rate limit exceeded: ${check.name}`, {
-            current: check.current,
-            limit: check.limit,
-            waitTimeMs: waitTime,
-            resetTime: new Date(check.resetTime).toISOString()
-          })
-        }
-
-        return {
-          allowed: false,
-          waitTime: Math.max(0, waitTime),
-          reason: `${check.name} limit exceeded (${check.current}/${check.limit})`
+      // 分単位チェック
+      if (type === 'requests') {
+        const recentRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.minute
+        )
+        if (recentRequests.length >= this.limits.requestsPerMinute) {
+          return false
         }
       }
-    }
 
-    return { allowed: true, waitTime: 0, reason: 'OK' }
-  }
-
-  /**
-   * 読み込み操作前のレート制限チェック
-   * @returns {Object} { allowed: boolean, waitTime: number, reason: string }
-   */
-  async checkReadLimit () {
-    this.resetExpiredCounters()
-
-    const checks = [
-      {
-        name: '15min',
-        current: this.usage.reads.quarter.count,
-        limit: this.limits.reads.per15min,
-        resetTime: this.usage.reads.quarter.resetTime
-      },
-      {
-        name: 'hourly',
-        current: this.usage.reads.hour.count,
-        limit: this.limits.reads.perHour,
-        resetTime: this.usage.reads.hour.resetTime
-      }
-    ]
-
-    for (const check of checks) {
-      if (check.current >= check.limit) {
-        const waitTime = check.resetTime - Date.now()
-
-        if (this.enableLogging) {
-          this.logger.warn(`Twitter read rate limit exceeded: ${check.name}`, {
-            current: check.current,
-            limit: check.limit,
-            waitTimeMs: waitTime
-          })
+      // 時間単位チェック
+      if (type === 'tweets') {
+        const recentTweets = history.filter(
+          record => now - record.timestamp < this.timeWindows.hour
+        )
+        if (recentTweets.length >= this.limits.tweetsPerHour) {
+          return false
         }
 
-        return {
-          allowed: false,
-          waitTime: Math.max(0, waitTime),
-          reason: `${check.name} read limit exceeded (${check.current}/${check.limit})`
+        // 日単位チェック
+        const dailyTweets = history.filter(
+          record => now - record.timestamp < this.timeWindows.day
+        )
+        if (dailyTweets.length >= this.limits.tweetsPerDay) {
+          return false
         }
       }
-    }
 
-    return { allowed: true, waitTime: 0, reason: 'OK' }
-  }
-
-  /**
-   * ツイート投稿の使用量を記録
-   */
-  recordTweet () {
-    this.resetExpiredCounters()
-
-    this.usage.tweets.hour.count++
-    this.usage.tweets.day.count++
-    this.usage.tweets.month.count++
-
-    if (this.enableLogging) {
-      this.logger.info('Tweet recorded', {
-        hourly: `${this.usage.tweets.hour.count}/${this.limits.tweets.perHour}`,
-        daily: `${this.usage.tweets.day.count}/${this.limits.tweets.perDay}`,
-        monthly: `${this.usage.tweets.month.count}/${this.limits.tweets.perMonth}`
-      })
+      return true
+    } catch (error) {
+      this.logger.error('Error checking rate limit', { error: error.message, type })
+      return true // エラー時は許可
     }
   }
 
-  /**
-   * 読み込み操作の使用量を記録
-   */
-  recordRead () {
-    this.resetExpiredCounters()
+  async recordRequest (type = 'requests', success = true) {
+    try {
+      const now = Date.now()
+      const record = {
+        timestamp: now,
+        success
+      }
 
-    this.usage.reads.quarter.count++
-    this.usage.reads.hour.count++
+      // 履歴に追加
+      if (!this.requestHistory[type]) {
+        this.requestHistory[type] = []
+      }
+      this.requestHistory[type].push(record)
 
-    if (this.enableLogging) {
-      this.logger.debug('Read operation recorded', {
-        quarter: `${this.usage.reads.quarter.count}/${this.limits.reads.per15min}`,
-        hourly: `${this.usage.reads.hour.count}/${this.limits.reads.perHour}`
-      })
+      // 統計更新
+      if (!this.stats[type]) {
+        this.stats[type] = { total: 0, successful: 0, failed: 0, history: [] }
+      }
+
+      this.stats[type].total++
+      if (success) {
+        this.stats[type].successful++
+        this.backoffCounters[type] = 0 // 成功時はバックオフリセット
+      } else {
+        this.stats[type].failed++
+        this.backoffCounters[type]++
+      }
+
+      this.stats[type].history.push(record)
+
+      // 履歴サイズ制限
+      if (this.stats[type].history.length > 1000) {
+        this.stats[type].history = this.stats[type].history.slice(-500)
+      }
+
+      this.cleanOldRecords(type, now)
+    } catch (error) {
+      this.logger.error('Error recording request', { error: error.message, type })
     }
   }
 
-  /**
-   * 期限切れカウンターをリセット
-   */
-  resetExpiredCounters () {
+  async getWaitTime (type = 'requests') {
+    try {
+      const now = Date.now()
+      this.cleanOldRecords(type, now)
+
+      const history = this.requestHistory[type] || []
+
+      if (type === 'requests') {
+        const recentRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.minute
+        )
+        if (recentRequests.length >= this.limits.requestsPerMinute) {
+          const oldestRecent = Math.min(...recentRequests.map(r => r.timestamp))
+          return this.timeWindows.minute - (now - oldestRecent)
+        }
+      }
+
+      if (type === 'tweets') {
+        const recentTweets = history.filter(
+          record => now - record.timestamp < this.timeWindows.hour
+        )
+        if (recentTweets.length >= this.limits.tweetsPerHour) {
+          const oldestRecent = Math.min(...recentTweets.map(r => r.timestamp))
+          return this.timeWindows.hour - (now - oldestRecent)
+        }
+      }
+
+      return 0
+    } catch (error) {
+      this.logger.error('Error calculating wait time', { error: error.message, type })
+      return 0
+    }
+  }
+
+  async resetLimits (type) {
+    try {
+      if (type) {
+        this.requestHistory[type] = []
+        this.stats[type] = { total: 0, successful: 0, failed: 0, history: [] }
+        this.backoffCounters[type] = 0
+      } else {
+        this.resetAllLimits()
+      }
+    } catch (error) {
+      this.logger.error('Error resetting limits', { error: error.message, type })
+    }
+  }
+
+  async resetAllLimits () {
+    try {
+      this.requestHistory = { tweets: [], requests: [] }
+      this.stats = {
+        tweets: { total: 0, successful: 0, failed: 0, history: [] },
+        requests: { total: 0, successful: 0, failed: 0, history: [] }
+      }
+      this.backoffCounters = { tweets: 0, requests: 0 }
+    } catch (error) {
+      this.logger.error('Error resetting all limits', { error: error.message })
+    }
+  }
+
+  getStats () {
     const now = Date.now()
 
-    // ツイートカウンターのリセット
-    if (now >= this.usage.tweets.hour.resetTime) {
-      this.usage.tweets.hour = { count: 0, resetTime: this.getNextHour() }
-    }
-    if (now >= this.usage.tweets.day.resetTime) {
-      this.usage.tweets.day = { count: 0, resetTime: this.getNextDay() }
-    }
-    if (now >= this.usage.tweets.month.resetTime) {
-      this.usage.tweets.month = { count: 0, resetTime: this.getNextMonth() }
+    const result = {}
+
+    for (const [type, typeStats] of Object.entries(this.stats)) {
+      this.cleanOldRecords(type, now)
+
+      const history = this.requestHistory[type] || []
+
+      let remaining = {}
+      if (type === 'tweets') {
+        const hourlyRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.hour
+        ).length
+        const dailyRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.day
+        ).length
+
+        remaining = {
+          hour: Math.max(0, this.limits.tweetsPerHour - hourlyRequests),
+          day: Math.max(0, this.limits.tweetsPerDay - dailyRequests)
+        }
+      } else if (type === 'requests') {
+        const minuteRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.minute
+        ).length
+
+        remaining = {
+          minute: Math.max(0, this.limits.requestsPerMinute - minuteRequests)
+        }
+      }
+
+      const successRate = typeStats.total > 0
+        ? Math.round((typeStats.successful / typeStats.total) * 10000) / 100
+        : 0
+
+      result[type] = {
+        total: typeStats.total,
+        successful: typeStats.successful,
+        failed: typeStats.failed,
+        successRate,
+        remaining,
+        resetTime: this.getNextResetTime(type),
+        history: typeStats.history.slice(-10) // 最新10件
+      }
     }
 
-    // 読み込みカウンターのリセット
-    if (now >= this.usage.reads.quarter.resetTime) {
-      this.usage.reads.quarter = { count: 0, resetTime: this.getNext15Min() }
-    }
-    if (now >= this.usage.reads.hour.resetTime) {
-      this.usage.reads.hour = { count: 0, resetTime: this.getNextHour() }
-    }
+    return result
   }
 
-  /**
-   * 現在の使用状況を取得
-   * @returns {Object} 使用状況の詳細
-   */
-  getUsageStats () {
-    this.resetExpiredCounters()
+  getBackoffTime (type) {
+    const failureCount = this.backoffCounters[type] || 0
+    if (failureCount === 0) return 0
+
+    // 指数バックオフ: 2^failures * 1000ms, 最大60秒
+    return Math.min(Math.pow(2, failureCount) * 1000, 60000)
+  }
+
+  getHealth () {
+    const stats = this.getStats()
+    let maxUsage = 0
+
+    // 各タイプの使用率を計算し、最大値を使用
+    for (const [type, typeStats] of Object.entries(stats)) {
+      if (type === 'tweets') {
+        const hourUsage = this.limits.tweetsPerHour - typeStats.remaining.hour
+        const usagePercent = (hourUsage / this.limits.tweetsPerHour) * 100
+        maxUsage = Math.max(maxUsage, usagePercent)
+      } else if (type === 'requests') {
+        const minuteUsage = this.limits.requestsPerMinute - typeStats.remaining.minute
+        const usagePercent = (minuteUsage / this.limits.requestsPerMinute) * 100
+        maxUsage = Math.max(maxUsage, usagePercent)
+      }
+    }
+
+    let status = 'healthy'
+    if (maxUsage >= 90) {
+      status = 'unhealthy'
+    } else if (maxUsage >= 80) {
+      status = 'warning'
+    }
 
     return {
-      tweets: {
-        hourly: {
-          current: this.usage.tweets.hour.count,
-          limit: this.limits.tweets.perHour,
-          percentage: (this.usage.tweets.hour.count / this.limits.tweets.perHour * 100).toFixed(1),
-          resetTime: new Date(this.usage.tweets.hour.resetTime).toISOString()
-        },
-        daily: {
-          current: this.usage.tweets.day.count,
-          limit: this.limits.tweets.perDay,
-          percentage: (this.usage.tweets.day.count / this.limits.tweets.perDay * 100).toFixed(1),
-          resetTime: new Date(this.usage.tweets.day.resetTime).toISOString()
-        },
-        monthly: {
-          current: this.usage.tweets.month.count,
-          limit: this.limits.tweets.perMonth,
-          percentage: (
-            (this.usage.tweets.month.count / this.limits.tweets.perMonth) * 100
-          ).toFixed(1),
-          resetTime: new Date(this.usage.tweets.month.resetTime).toISOString()
-        }
-      },
-      reads: {
-        quarter: {
-          current: this.usage.reads.quarter.count,
-          limit: this.limits.reads.per15min,
-          percentage: (
-            (this.usage.reads.quarter.count / this.limits.reads.per15min) * 100
-          ).toFixed(1),
-          resetTime: new Date(this.usage.reads.quarter.resetTime).toISOString()
-        },
-        hourly: {
-          current: this.usage.reads.hour.count,
-          limit: this.limits.reads.perHour,
-          percentage: (this.usage.reads.hour.count / this.limits.reads.perHour * 100).toFixed(1),
-          resetTime: new Date(this.usage.reads.hour.resetTime).toISOString()
-        }
+      status,
+      limits: this.limits,
+      usage: {
+        maximum: Math.round(maxUsage * 100) / 100,
+        details: stats
       }
     }
   }
 
-  /**
-   * レート制限に達した場合の待機
-   * @param {number} waitTime 待機時間（ミリ秒）
-   * @returns {Promise} 待機完了Promise
-   */
-  async waitForReset (waitTime) {
-    if (waitTime <= 0) return
+  cleanOldRecords (type, now) {
+    if (!this.requestHistory[type]) return
 
-    if (this.enableLogging) {
-      this.logger.info(`Waiting for rate limit reset: ${waitTime}ms`)
+    // 24時間より古い記録を削除
+    this.requestHistory[type] = this.requestHistory[type].filter(
+      record => now - record.timestamp < this.timeWindows.day
+    )
+  }
+
+  getNextResetTime (type) {
+    const now = Date.now()
+
+    if (type === 'tweets') {
+      // 次の時間の開始時刻
+      const nextHour = new Date(now)
+      nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0)
+      return nextHour.toISOString()
+    } else if (type === 'requests') {
+      // 次の分の開始時刻
+      const nextMinute = new Date(now)
+      nextMinute.setMinutes(nextMinute.getMinutes() + 1, 0, 0)
+      return nextMinute.toISOString()
     }
 
-    return new Promise(resolve => setTimeout(resolve, waitTime))
+    return new Date(now).toISOString()
   }
 
-  /**
-   * 時刻計算メソッド群
-   */
-  getNext15Min () {
-    const now = new Date()
-    const next = new Date(now)
-    next.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0)
-    return next.getTime()
-  }
-
-  getNextHour () {
-    const now = new Date()
-    const next = new Date(now)
-    next.setHours(now.getHours() + 1, 0, 0, 0)
-    return next.getTime()
-  }
-
-  getNextDay () {
-    const now = new Date()
-    const next = new Date(now)
-    next.setDate(now.getDate() + 1)
-    next.setHours(0, 0, 0, 0)
-    return next.getTime()
-  }
-
-  getNextMonth () {
-    const now = new Date()
-    const next = new Date(now)
-    next.setMonth(now.getMonth() + 1, 1)
-    next.setHours(0, 0, 0, 0)
-    return next.getTime()
-  }
-
-  /**
-   * 設定を更新
-   * @param {Object} newConfig 新しい設定
-   */
-  updateConfig (newConfig) {
-    this.limits = { ...this.limits, ...newConfig.limits }
-    this.enableLogging = newConfig.enableLogging !== undefined
-      ? newConfig.enableLogging
-      : this.enableLogging
-
-    if (newConfig.logger) {
-      this.logger = newConfig.logger
-    }
-
-    if (this.enableLogging) {
-      this.logger.info('RateLimiter configuration updated', { limits: this.limits })
-    }
-  }
-
-  /**
-   * 使用量をリセット（テスト用）
-   */
-  reset () {
-    this.usage = {
-      tweets: {
-        hour: { count: 0, resetTime: this.getNextHour() },
-        day: { count: 0, resetTime: this.getNextDay() },
-        month: { count: 0, resetTime: this.getNextMonth() }
-      },
-      reads: {
-        quarter: { count: 0, resetTime: this.getNext15Min() },
-        hour: { count: 0, resetTime: this.getNextHour() }
-      }
-    }
-
-    if (this.enableLogging) {
-      this.logger.info('RateLimiter usage counters reset')
+  cleanup () {
+    try {
+      this.resetAllLimits()
+    } catch (error) {
+      this.logger.error('Error during cleanup', { error: error.message })
     }
   }
 }

@@ -102,9 +102,9 @@ describe('End-to-End Integration Tests', () => {
     }
   })
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // レート制限リセット
-    rateLimiter.reset()
+    await rateLimiter.resetLimits('tweets')
 
     // テストごとにクリーンな状態に
     jest.clearAllMocks()
@@ -137,19 +137,28 @@ describe('End-to-End Integration Tests', () => {
 
       const testFeeds = [
         {
+          name: 'Test AI Feed',
           url: 'https://example.com/test-feed.rss',
-          category: 'news',
+          category: 'ai',
           enabled: true
         }
       ]
 
-      const feedResults = await feedParser.parseMultipleFeeds(testFeeds)
+      let feedResults
+      try {
+        feedResults = await feedParser.parseMultipleFeeds(testFeeds)
+        // Debug output for tests
+        logger.debug('feedResults:', JSON.stringify(feedResults, null, 2))
+      } catch (error) {
+        logger.error('parseMultipleFeeds error:', error.message)
+        throw error
+      }
 
       expect(feedResults).toBeDefined()
       expect(Array.isArray(feedResults)).toBe(true)
       expect(feedResults.length).toBeGreaterThan(0)
 
-      const allArticles = feedResults.flatMap(result => result.articles)
+      const allArticles = feedResults.flatMap(result => result.items || [])
       expect(allArticles.length).toBeGreaterThan(0)
 
       // Phase 2: コンテンツフィルタリング
@@ -165,27 +174,22 @@ describe('End-to-End Integration Tests', () => {
       })
 
       // Phase 3: ツイート生成
-      if (filteredArticles.length > 0) {
-        const article = filteredArticles[0]
-        const tweet = await tweetGenerator.generateTweet(article)
+      expect(filteredArticles.length).toBeGreaterThan(0)
+      const firstArticle = filteredArticles[0]
+      const tweet = await tweetGenerator.generateTweet(firstArticle)
 
-        expect(tweet).toBeDefined()
-        expect(tweet.text).toBeDefined()
-        expect(tweet.text.length).toBeLessThanOrEqual(280)
-        expect(tweet.hashtags).toBeDefined()
-        expect(Array.isArray(tweet.hashtags)).toBe(true)
-      }
+      expect(tweet).toBeDefined()
+      expect(tweet.text).toBeDefined()
+      expect(tweet.text.length).toBeLessThanOrEqual(280)
+      expect(tweet.hashtags).toBeDefined()
+      expect(Array.isArray(tweet.hashtags)).toBe(true)
 
       // Phase 4: 重複チェック
-      if (filteredArticles.length > 0) {
-        const article = filteredArticles[0]
-        const isDuplicate = await tweetHistory.isDuplicate(article.url)
-
-        expect(typeof isDuplicate).toBe('boolean')
-      }
+      const isDuplicate = await tweetHistory.isDuplicate(firstArticle.url)
+      expect(typeof isDuplicate).toBe('boolean')
 
       // Phase 5: レート制限チェック
-      const rateLimitCheck = await rateLimiter.checkTweetLimit()
+      const rateLimitCheck = await rateLimiter.checkLimit('tweets')
 
       expect(rateLimitCheck).toBeDefined()
       expect(rateLimitCheck).toHaveProperty('allowed')
@@ -193,29 +197,24 @@ describe('End-to-End Integration Tests', () => {
       expect(rateLimitCheck).toHaveProperty('reason')
 
       // Phase 6: ツイート投稿（ドライラン）
-      if (filteredArticles.length > 0 && rateLimitCheck.allowed) {
-        const article = filteredArticles[0]
-        const tweet = await tweetGenerator.generateTweet(article)
+      expect(rateLimitCheck.allowed).toBe(true)
+      const finalTweet = await tweetGenerator.generateTweet(firstArticle)
+      const postResult = await twitterClient.postTweet(finalTweet.text)
 
-        const postResult = await twitterClient.postTweet(tweet.text)
+      expect(postResult).toBeDefined()
+      expect(postResult.success).toBe(true) // ドライランなので成功
 
-        expect(postResult).toBeDefined()
-        expect(postResult.success).toBe(true) // ドライランなので成功
+      // 投稿記録
+      await tweetHistory.addTweet({
+        url: firstArticle.url,
+        title: firstArticle.title,
+        text: finalTweet.text,
+        hashtags: finalTweet.hashtags,
+        postedAt: new Date(),
+        tweetId: postResult.tweetId
+      })
 
-        // 投稿記録
-        if (postResult.success) {
-          await tweetHistory.saveTweet({
-            url: article.url,
-            title: article.title,
-            tweetText: tweet.text,
-            hashtags: tweet.hashtags,
-            postedAt: new Date(),
-            tweetId: postResult.tweetId
-          })
-
-          rateLimiter.recordTweet()
-        }
-      }
+      await rateLimiter.recordRequest('tweets', true)
     }, 30000) // 30秒タイムアウト
 
     test('複数フィードの並行処理', async () => {
@@ -267,10 +266,10 @@ describe('End-to-End Integration Tests', () => {
     test('レート制限に達した場合の処理', async () => {
       // レート制限を意図的に超過させる
       for (let i = 0; i < 12; i++) { // 制限は10/hour
-        rateLimiter.recordTweet()
+        await rateLimiter.recordRequest('tweets', true)
       }
 
-      const rateLimitCheck = await rateLimiter.checkTweetLimit()
+      const rateLimitCheck = await rateLimiter.checkLimit('tweets')
 
       expect(rateLimitCheck.allowed).toBe(false)
       expect(rateLimitCheck.waitTime).toBeGreaterThan(0)
@@ -289,10 +288,10 @@ describe('End-to-End Integration Tests', () => {
       expect(isDuplicateFirst).toBe(false)
 
       // ツイートを保存
-      await tweetHistory.saveTweet({
+      await tweetHistory.addTweet({
         url: testArticle.url,
         title: testArticle.title,
-        tweetText: 'Test tweet text',
+        text: 'Test tweet text',
         hashtags: ['#test'],
         postedAt: new Date(),
         tweetId: 'test-tweet-id'
@@ -309,7 +308,8 @@ describe('End-to-End Integration Tests', () => {
       // 100件の模擬記事を生成
       const mockArticles = Array.from({ length: 100 }, (_, i) => ({
         title: `Test Article ${i}`,
-        content: `This is test content for article ${i} about artificial intelligence and machine learning.`,
+        content: `This is test content for article ${i} about ` +
+          'artificial intelligence and machine learning.',
         url: `https://example.com/article-${i}`,
         publishedAt: new Date(),
         category: 'ai'
@@ -334,7 +334,9 @@ describe('End-to-End Integration Tests', () => {
     test('ツイート生成の性能', async () => {
       const testArticle = {
         title: 'AI Breakthrough in Natural Language Processing',
-        content: 'Researchers have developed a new transformer architecture that significantly improves understanding of context in natural language processing tasks.',
+        content: 'Researchers have developed a new transformer architecture ' +
+          'that significantly improves understanding of context in ' +
+          'natural language processing tasks.',
         url: 'https://example.com/ai-breakthrough',
         publishedAt: new Date()
       }
@@ -369,7 +371,10 @@ describe('End-to-End Integration Tests', () => {
       expect(healthStatus).toHaveProperty('timestamp')
 
       // 各コンポーネントの状態をチェック
-      const components = ['feedParser', 'contentFilter', 'tweetGenerator', 'twitterClient', 'rateLimiter', 'tweetHistory']
+      const components = [
+        'feedParser', 'contentFilter', 'tweetGenerator',
+        'twitterClient', 'rateLimiter', 'tweetHistory'
+      ]
 
       components.forEach(component => {
         expect(healthStatus.components).toHaveProperty(component)

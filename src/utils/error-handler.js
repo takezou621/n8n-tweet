@@ -326,7 +326,7 @@ class ErrorHandler {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       attemptCount = attempt + 1
-      
+
       try {
         const result = await fn()
 
