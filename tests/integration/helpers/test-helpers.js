@@ -68,13 +68,23 @@ async function createTestDataDirectory (basePath) {
   const testDataDir = path.join(basePath, 'temp-test-data')
 
   try {
-    await fs.mkdir(testDataDir, { recursive: true })
+    // ディレクトリが存在するかチェック
+    await fs.access(testDataDir)
     return testDataDir
   } catch (error) {
-    if (error.code !== 'EEXIST') {
-      throw error
+    if (error.code === 'ENOENT') {
+      // ディレクトリが存在しない場合は作成
+      try {
+        await fs.mkdir(testDataDir, { recursive: true })
+        return testDataDir
+      } catch (mkdirError) {
+        if (mkdirError.code !== 'EEXIST') {
+          throw mkdirError
+        }
+        return testDataDir
+      }
     }
-    return testDataDir
+    throw error
   }
 }
 

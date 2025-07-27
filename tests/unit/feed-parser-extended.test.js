@@ -221,7 +221,7 @@ describe('FeedParser - Extended Tests', () => {
         }
       }
 
-      const categoryInfo = feedParser.getCategoryInfo(fullConfig, 'research')
+      const categoryInfo = feedParser.getCategoryInfo('research', fullConfig.categories)
 
       expect(categoryInfo.weight).toBe(1.0)
       expect(categoryInfo.keywords).toContain('paper')
@@ -230,7 +230,7 @@ describe('FeedParser - Extended Tests', () => {
 
     it('should return default category for unknown category', () => {
       const fullConfig = { categories: {} }
-      const categoryInfo = feedParser.getCategoryInfo(fullConfig, 'unknown')
+      const categoryInfo = feedParser.getCategoryInfo('unknown', fullConfig.categories)
 
       expect(categoryInfo.weight).toBe(0.5)
       expect(categoryInfo.hashtagPrefix).toBe('#AI')
@@ -278,7 +278,7 @@ describe('FeedParser - Extended Tests', () => {
       const health = feedParser.checkFeedHealth(feedResult)
 
       expect(health.issues).toContain('No recent content (older than 30 days)')
-      expect(health.score).toBeLessThan(1.0)
+      expect(health.score).toBeLessThan(100)
     })
 
     it('should report very unhealthy feed', () => {
@@ -289,8 +289,8 @@ describe('FeedParser - Extended Tests', () => {
 
       const health = feedParser.checkFeedHealth(feedResult)
 
-      expect(health.status).toBe('warning') // 0.6 score = warning status
-      expect(health.score).toBeLessThan(0.8)
+      expect(health.status).toBe('unhealthy') // 30 score = unhealthy status
+      expect(health.score).toBeLessThan(50)
       expect(health.issues).toHaveLength(2) // no items + slow response
     })
   })

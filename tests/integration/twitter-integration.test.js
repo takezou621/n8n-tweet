@@ -182,7 +182,7 @@ describe('Twitter Integration Tests', () => {
 
       // TwitterClientがレート制限を検出
       const canPost = await twitterClient.rateLimiter.checkLimit('tweets')
-      expect(canPost).toBe(false)
+      expect(canPost.allowed).toBe(false)
 
       // ツイート投稿を試行
       const postResult = await twitterClient.postTweet('Rate limited tweet')
@@ -207,12 +207,14 @@ describe('Twitter Integration Tests', () => {
         await rateLimiter.recordRequest('tweets', true)
       }
 
-      expect(await rateLimiter.checkLimit('tweets')).toBe(false)
+      const limitResult = await rateLimiter.checkLimit('tweets')
+      expect(limitResult.allowed).toBe(false)
 
       // レート制限をリセット
       await rateLimiter.resetLimits('tweets')
 
-      expect(await rateLimiter.checkLimit('tweets')).toBe(true)
+      const resetResult = await rateLimiter.checkLimit('tweets')
+      expect(resetResult.allowed).toBe(true)
 
       // 投稿成功をモック
       fetchMock.mockSuccess({
@@ -376,9 +378,9 @@ describe('Twitter Integration Tests', () => {
 
       for (const tweetText of tweets) {
         // レート制限チェック
-        const canPost = await rateLimiter.checkLimit('tweets')
+        const limitCheck = await rateLimiter.checkLimit('tweets')
 
-        if (canPost) {
+        if (limitCheck.allowed) {
           // 成功をモック
           fetchMock.mockSuccess({
             data: { id: Date.now().toString(), text: tweetText }

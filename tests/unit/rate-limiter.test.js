@@ -42,7 +42,9 @@ describe('RateLimiter', () => {
     test('制限内であればtrueを返す', async () => {
       const result = await rateLimiter.checkLimit('tweets')
 
-      expect(result).toBe(true)
+      expect(result.allowed).toBe(true)
+      expect(result.reason).toBe('Within limits')
+      expect(result.waitTime).toBe(0)
     })
 
     test('時間単位の制限に達した場合はfalseを返す', async () => {
@@ -53,7 +55,9 @@ describe('RateLimiter', () => {
 
       const result = await rateLimiter.checkLimit('tweets')
 
-      expect(result).toBe(false)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toBe('Tweets per hour limit exceeded')
+      expect(result.waitTime).toBeGreaterThan(0)
     })
 
     test('日単位の制限に達した場合はfalseを返す', async () => {
@@ -64,7 +68,9 @@ describe('RateLimiter', () => {
 
       const result = await rateLimiter.checkLimit('tweets')
 
-      expect(result).toBe(false)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('limit exceeded')
+      expect(result.waitTime).toBeGreaterThan(0)
     })
 
     test('分単位の要求制限に達した場合はfalseを返す', async () => {
@@ -75,13 +81,17 @@ describe('RateLimiter', () => {
 
       const result = await rateLimiter.checkLimit('requests')
 
-      expect(result).toBe(false)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toBe('Request per minute limit exceeded')
+      expect(result.waitTime).toBeGreaterThan(0)
     })
 
     test('不明なタイプの場合はデフォルト制限を使用する', async () => {
       const result = await rateLimiter.checkLimit('unknown')
 
-      expect(result).toBe(true)
+      expect(result.allowed).toBe(true)
+      expect(result.reason).toBe('Within limits')
+      expect(result.waitTime).toBe(0)
     })
   })
 
@@ -167,12 +177,14 @@ describe('RateLimiter', () => {
         await rateLimiter.recordRequest('tweets')
       }
 
-      expect(await rateLimiter.checkLimit('tweets')).toBe(false)
+      const result = await rateLimiter.checkLimit('tweets')
+      expect(result.allowed).toBe(false)
 
       // 時間を進める（実際の実装では時間経過をシミュレートする必要がある）
       await rateLimiter.resetLimits('tweets')
 
-      expect(await rateLimiter.checkLimit('tweets')).toBe(true)
+      const resultAfterReset = await rateLimiter.checkLimit('tweets')
+      expect(resultAfterReset.allowed).toBe(true)
     })
 
     test('すべての制限をリセットできる', async () => {

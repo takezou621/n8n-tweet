@@ -85,12 +85,21 @@ class TweetHistory {
     }
   }
 
-  async isDuplicate (text) {
+  async isDuplicate (urlOrText) {
     try {
-      const normalizedText = text.trim().toLowerCase()
-      return this.tweets.some(tweet =>
-        tweet.text.trim().toLowerCase() === normalizedText
-      )
+      // URLかテキストかを判定
+      const isUrl = urlOrText.startsWith('http://') || urlOrText.startsWith('https://')
+
+      if (isUrl) {
+        // URL重複チェック
+        return this.tweets.some(tweet => tweet.url === urlOrText)
+      } else {
+        // テキスト重複チェック
+        const normalizedText = urlOrText.trim().toLowerCase()
+        return this.tweets.some(tweet =>
+          tweet.text && tweet.text.trim().toLowerCase() === normalizedText
+        )
+      }
     } catch (error) {
       this.logger.error('Error checking duplicate', { error: error.message })
       return false
@@ -440,6 +449,26 @@ class TweetHistory {
   // Alias for load method to match API expectations
   async loadHistory () {
     return this.load()
+  }
+
+  // ダッシュボードAPI用ツイート一覧取得
+  getTweets (filters = {}) {
+    try {
+      // getHistoryと同じロジックを使用
+      const tweets = this.getHistory(filters)
+
+      // API用に軽量化されたデータを返す
+      return tweets.map(tweet => ({
+        id: tweet.id,
+        text: tweet.text.length > 100 ? tweet.text.substring(0, 100) + '...' : tweet.text,
+        status: tweet.status,
+        createdAt: tweet.createdAt,
+        url: tweet.url || null
+      }))
+    } catch (error) {
+      this.logger.error('Error getting tweets for API', { error: error.message })
+      return []
+    }
   }
 }
 

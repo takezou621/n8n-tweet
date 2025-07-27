@@ -20,7 +20,11 @@ describe('TwitterClient', () => {
   beforeEach(() => {
     // RateLimiterのモック
     mockRateLimiter = {
-      checkLimit: jest.fn().mockResolvedValue(true),
+      checkLimit: jest.fn().mockResolvedValue({
+        allowed: true,
+        reason: 'Within limits',
+        waitTime: 0
+      }),
       recordRequest: jest.fn(),
       getStats: jest.fn().mockReturnValue({
         requests: 0,
@@ -102,7 +106,11 @@ describe('TwitterClient', () => {
     })
 
     test('レート制限に達した場合はエラーを返す', async () => {
-      mockRateLimiter.checkLimit.mockResolvedValueOnce(false)
+      mockRateLimiter.checkLimit.mockResolvedValueOnce({
+        allowed: false,
+        reason: 'Rate limit exceeded',
+        waitTime: 3600000
+      })
 
       const result = await twitterClient.postTweet('Test tweet')
 

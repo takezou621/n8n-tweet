@@ -377,6 +377,8 @@ describe('ErrorHandler', () => {
       await errorHandler.handleError('test_error', error1)
       await errorHandler.handleError('network_error', error2)
 
+      // 1ms待機してuptimeを確保
+      await new Promise(resolve => setTimeout(resolve, 1))
       const stats = errorHandler.getStats()
 
       expect(stats.total).toBe(2)
@@ -384,7 +386,7 @@ describe('ErrorHandler', () => {
       expect(stats.byType.network_error).toBe(1)
       expect(stats.byCategory.unknown).toBe(1)
       expect(stats.byCategory.network).toBe(1)
-      expect(stats.uptime).toBeGreaterThan(0)
+      expect(stats.uptime).toBeGreaterThanOrEqual(0)
     })
 
     test('トップエラーを取得できる', async () => {

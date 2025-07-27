@@ -42,16 +42,12 @@ class TwitterClient {
   }
 
   validateCredentials () {
-    // テスト環境では認証チェックをスキップ
-    if (process.env.NODE_ENV === 'test') {
-      return true
-    }
-
     const required = ['bearerToken', 'apiKey', 'apiSecret', 'accessToken', 'accessTokenSecret']
     const missing = required.filter(field => !this.credentials[field])
 
     if (missing.length > 0) {
-      throw new Error(`Missing required Twitter credential fields: ${missing.join(', ')}`)
+      // テスト環境でもエラーメッセージは統一
+      throw new Error('Missing required Twitter credential fields')
     }
   }
 
@@ -70,8 +66,8 @@ class TwitterClient {
       }
 
       // レート制限チェック
-      const canPost = await this.rateLimiter.checkLimit('tweets')
-      if (!canPost) {
+      const limitCheck = await this.rateLimiter.checkLimit('tweets')
+      if (!limitCheck.allowed) {
         return {
           success: false,
           error: {

@@ -44,6 +44,8 @@ class RateLimiter {
       this.cleanOldRecords(type, now)
 
       const history = this.requestHistory[type] || []
+      let reason = ''
+      let waitTime = 0
 
       // 分単位チェック
       if (type === 'requests') {
@@ -51,7 +53,9 @@ class RateLimiter {
           record => now - record.timestamp < this.timeWindows.minute
         )
         if (recentRequests.length >= this.limits.requestsPerMinute) {
-          return false
+          reason = 'Request per minute limit exceeded'
+          waitTime = this.timeWindows.minute - (now - recentRequests[0].timestamp)
+          return { allowed: false, reason, waitTime }
         }
       }
 
@@ -61,7 +65,9 @@ class RateLimiter {
           record => now - record.timestamp < this.timeWindows.hour
         )
         if (recentTweets.length >= this.limits.tweetsPerHour) {
-          return false
+          reason = 'Tweets per hour limit exceeded'
+          waitTime = this.timeWindows.hour - (now - recentTweets[0].timestamp)
+          return { allowed: false, reason, waitTime }
         }
 
         // 日単位チェック
@@ -69,14 +75,16 @@ class RateLimiter {
           record => now - record.timestamp < this.timeWindows.day
         )
         if (dailyTweets.length >= this.limits.tweetsPerDay) {
-          return false
+          reason = 'Tweets per day limit exceeded'
+          waitTime = this.timeWindows.day - (now - dailyTweets[0].timestamp)
+          return { allowed: false, reason, waitTime }
         }
       }
 
-      return true
+      return { allowed: true, reason: 'Within limits', waitTime: 0 }
     } catch (error) {
       this.logger.error('Error checking rate limit', { error: error.message, type })
-      return true // エラー時は許可
+      return { allowed: true, reason: 'Error occurred', waitTime: 0 } // エラー時は許可
     }
   }
 
