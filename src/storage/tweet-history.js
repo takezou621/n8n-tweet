@@ -470,6 +470,21 @@ class TweetHistory {
       return []
     }
   }
+
+  // ダッシュボードAPI用統計情報取得 (getStatsのエイリアス)
+  getStatistics (filters = {}) {
+    try {
+      const stats = this.getStats(filters)
+      return {
+        ...stats,
+        hourlyData: this.getHourlyStats(),
+        dailyData: this.getDailyStats()
+      }
+    } catch (error) {
+      this.logger.error('Error getting statistics for API', { error: error.message })
+      return { total: 0, successful: 0, failed: 0, pending: 0, successRate: 0 }
+    }
+  }
 }
 
 module.exports = TweetHistory

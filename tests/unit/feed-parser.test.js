@@ -18,7 +18,9 @@ describe('FeedParser', () => {
       retryDelay: 5000,
       userAgent: 'test-bot/1.0.0',
       rateLimitDelay: 100,
-      maxConcurrentFeeds: 5
+      maxConcurrentFeeds: 5,
+      logLevel: 'info',
+      maxRetries: 3
     }
     feedParser = new FeedParser(mockConfig)
   })
@@ -38,6 +40,8 @@ describe('FeedParser', () => {
       const defaultParser = new FeedParser()
       expect(defaultParser.config.timeout).toBe(30000)
       expect(defaultParser.config.retryAttempts).toBe(2)
+      expect(defaultParser.config.maxRetries).toBe(3)
+      expect(defaultParser.config.logLevel).toBe('info')
     })
   })
 
@@ -330,12 +334,13 @@ describe('FeedParser', () => {
 
   describe('error handling', () => {
     it('should log errors appropriately', async () => {
-      const loggerSpy = jest.spyOn(feedParser.logger, 'error')
+      const loggerWarnSpy = jest.spyOn(feedParser.logger, 'warn')
 
       const feedConfig = {
         name: 'Error Feed',
         url: 'https://error.com/rss',
-        category: 'test'
+        category: 'test',
+        retryAttempts: 2
       }
 
       feedParser.parseFeed = jest.fn()
@@ -347,11 +352,13 @@ describe('FeedParser', () => {
         // Expected to fail
       }
 
-      expect(loggerSpy).toHaveBeenCalledWith(
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Feed parsing failed'),
         expect.objectContaining({
           feedName: 'Error Feed',
-          error: expect.any(Error)
+          error: expect.any(Error),
+          attempt: expect.any(Number),
+          maxRetries: expect.any(Number)
         })
       )
     })

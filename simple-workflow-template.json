@@ -1,0 +1,79 @@
+{
+  "name": "AI RSS to Tweet - Simple",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtHour": 12
+            }
+          ]
+        }
+      },
+      "name": "Daily Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://openai.com/news/rss.xml",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Fetch RSS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// RSS to Tweet Processor\nconst items = $input.all();\nconst rssData = items[0]?.json?.data;\n\nif (!rssData) {\n  return [{ json: { error: 'No RSS data' } }];\n}\n\n// Simple RSS parsing\nconst titleMatch = rssData.match(/<title>([^<]*)<\\/title>/i);\nconst linkMatch = rssData.match(/<link>([^<]*)<\\/link>/i);\n\nconst title = titleMatch ? titleMatch[1] : 'AI News';\nconst link = linkMatch ? linkMatch[1] : '';\n\n// Create tweet\nlet tweet = title;\nif (tweet.length > 200) {\n  tweet = tweet.substring(0, 197) + '...';\n}\n\ntweet += '\\n\\n#AI #OpenAI #TechNews';\nif (link) {\n  tweet += '\\n' + link;\n}\n\nreturn [{\n  json: {\n    title,\n    link,\n    tweet,\n    tweetLength: tweet.length,\n    timestamp: new Date().toISOString()\n  }\n}];\n          "
+      },
+      "name": "Process to Tweet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RSS": {
+      "main": [
+        [
+          {
+            "node": "Process to Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
