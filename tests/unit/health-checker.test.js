@@ -80,9 +80,9 @@ describe('HealthChecker', () => {
   describe('コンポーネント管理', () => {
     test('新しいコンポーネントを登録できる', () => {
       const newComponent = { test: true }
-      
+
       healthChecker.registerComponent('testComponent', newComponent)
-      
+
       expect(healthChecker.components.has('testComponent')).toBe(true)
       expect(healthChecker.components.get('testComponent').instance).toBe(newComponent)
       expect(healthChecker.components.get('testComponent').status).toBe('unknown')
@@ -100,7 +100,7 @@ describe('HealthChecker', () => {
 
     test('コンポーネントの登録を解除できる', () => {
       healthChecker.unregisterComponent('database')
-      
+
       expect(healthChecker.components.has('database')).toBe(false)
     })
 
@@ -114,9 +114,9 @@ describe('HealthChecker', () => {
   describe('個別コンポーネントのヘルスチェック', () => {
     test('healthCheckメソッドを持つコンポーネントをチェックできる', async () => {
       const component = healthChecker.components.get('database')
-      
+
       const result = await healthChecker.checkComponent('database', component)
-      
+
       expect(result.name).toBe('database')
       expect(result.status).toBe('healthy')
       expect(result.responseTime).toBeGreaterThanOrEqual(0)
@@ -127,9 +127,9 @@ describe('HealthChecker', () => {
 
     test('isHealthyメソッドを持つコンポーネントをチェックできる', async () => {
       const component = healthChecker.components.get('twitter')
-      
+
       const result = await healthChecker.checkComponent('twitter', component)
-      
+
       expect(result.name).toBe('twitter')
       expect(result.status).toBe('healthy')
       expect(result.metrics).toEqual({ available: true })
@@ -138,9 +138,9 @@ describe('HealthChecker', () => {
 
     test('基本的なコンポーネントをチェックできる', async () => {
       const component = healthChecker.components.get('simple')
-      
+
       const result = await healthChecker.checkComponent('simple', component)
-      
+
       expect(result.name).toBe('simple')
       expect(result.status).toBe('healthy')
       expect(result.metrics).toEqual({ available: true })
@@ -148,9 +148,9 @@ describe('HealthChecker', () => {
 
     test('利用できないコンポーネントは不健全と判定される', async () => {
       const component = { instance: null }
-      
+
       const result = await healthChecker.checkComponent('unavailable', component)
-      
+
       expect(result.name).toBe('unavailable')
       expect(result.status).toBe('unhealthy')
       expect(result.error).toBe('Component instance not available')
@@ -162,9 +162,9 @@ describe('HealthChecker', () => {
           healthCheck: jest.fn().mockRejectedValue(new Error('Health check failed'))
         }
       }
-      
+
       const result = await healthChecker.checkComponent('error', errorComponent)
-      
+
       expect(result.name).toBe('error')
       expect(result.status).toBe('unhealthy')
       expect(result.error).toBe('Health check failed')
@@ -178,9 +178,9 @@ describe('HealthChecker', () => {
           )
         }
       }
-      
+
       const result = await healthChecker.checkComponent('slow', slowComponent)
-      
+
       expect(result.name).toBe('slow')
       expect(result.status).toBe('unhealthy')
       expect(result.error).toBe('Health check timeout')
@@ -190,7 +190,7 @@ describe('HealthChecker', () => {
   describe('全体ヘルスチェック', () => {
     test('全コンポーネントが健全な場合のヘルスチェック', async () => {
       const result = await healthChecker.performHealthCheck()
-      
+
       expect(result.overall.status).toBe('healthy')
       expect(result.overall.score).toBe(1.0)
       expect(result.overall.totalComponents).toBe(4)
@@ -206,9 +206,9 @@ describe('HealthChecker', () => {
     test('一部コンポーネントが不健全な場合のヘルスチェック', async () => {
       // databaseコンポーネントを不健全にする
       mockComponents.database.healthCheck.mockRejectedValue(new Error('DB connection failed'))
-      
+
       const result = await healthChecker.performHealthCheck()
-      
+
       expect(result.overall.status).toBe('degraded')
       expect(result.overall.score).toBe(0.75) // 3/4 = 0.75
       expect(result.overall.totalComponents).toBe(4)
@@ -222,9 +222,9 @@ describe('HealthChecker', () => {
       mockComponents.database.healthCheck.mockRejectedValue(new Error('DB failed'))
       mockComponents.redis.healthCheck.mockRejectedValue(new Error('Redis failed'))
       mockComponents.twitter.isHealthy.mockRejectedValue(new Error('Twitter failed'))
-      
+
       const result = await healthChecker.performHealthCheck()
-      
+
       expect(result.overall.status).toBe('unhealthy')
       expect(result.overall.score).toBe(0.25) // 1/4 = 0.25
       expect(result.overall.healthyComponents).toBe(1)
@@ -233,19 +233,19 @@ describe('HealthChecker', () => {
 
     test('コンポーネントがない場合のヘルスチェック', async () => {
       const emptyChecker = new HealthChecker({ enableAlerts: false })
-      
+
       const result = await emptyChecker.performHealthCheck()
-      
+
       expect(result.overall.status).toBe('healthy')
       expect(result.overall.score).toBe(0)
       expect(result.overall.totalComponents).toBe(0)
-      
+
       emptyChecker.stopPeriodicChecks()
     })
 
     test('checkHealthメソッドがperformHealthCheckのエイリアスとして動作する', async () => {
       const result = await healthChecker.checkHealth()
-      
+
       expect(result.overall).toBeDefined()
       expect(result.components).toBeDefined()
       expect(result.checkDuration).toBeGreaterThanOrEqual(0)
@@ -267,9 +267,9 @@ describe('HealthChecker', () => {
   describe('履歴管理', () => {
     test('ヘルスチェック結果が履歴に追加される', async () => {
       expect(healthChecker.healthHistory.length).toBe(0)
-      
+
       await healthChecker.performHealthCheck()
-      
+
       expect(healthChecker.healthHistory.length).toBe(1)
       expect(healthChecker.healthHistory[0].overall).toBeDefined()
     })
@@ -277,12 +277,12 @@ describe('HealthChecker', () => {
     test('履歴サイズが制限される', async () => {
       // maxHistoryを2に設定
       healthChecker.config.maxHistory = 2
-      
+
       // 3回ヘルスチェックを実行
       await healthChecker.performHealthCheck()
       await healthChecker.performHealthCheck()
       await healthChecker.performHealthCheck()
-      
+
       expect(healthChecker.healthHistory.length).toBe(2)
     })
   })
@@ -291,9 +291,9 @@ describe('HealthChecker', () => {
     test('統計情報を取得できる', async () => {
       // ヘルスチェックを実行して履歴を作成
       await healthChecker.performHealthCheck()
-      
+
       const stats = healthChecker.getHealthStats()
-      
+
       expect(stats.averageScore).toBeGreaterThanOrEqual(0)
       expect(stats.uptimePercentage).toBeGreaterThanOrEqual(0)
       expect(stats.incidentCount).toBeGreaterThanOrEqual(0)
@@ -303,7 +303,7 @@ describe('HealthChecker', () => {
 
     test('履歴がない場合の統計情報', () => {
       const stats = healthChecker.getHealthStats()
-      
+
       expect(stats.averageScore).toBe(0)
       expect(stats.uptimePercentage).toBe(0)
       expect(stats.incidentCount).toBe(0)
@@ -312,11 +312,11 @@ describe('HealthChecker', () => {
 
     test('指定時間範囲の統計情報を取得できる', async () => {
       await healthChecker.performHealthCheck()
-      
+
       // 少し待ってから極端に短い時間範囲で統計取得
       await new Promise(resolve => setTimeout(resolve, 5))
       const stats = healthChecker.getHealthStats(1) // 1ms
-      
+
       expect(stats.totalChecks).toBe(0)
     })
   })
@@ -324,9 +324,9 @@ describe('HealthChecker', () => {
   describe('定期ヘルスチェック', () => {
     test('定期ヘルスチェックを開始できる', () => {
       expect(healthChecker.isRunning).toBe(false)
-      
+
       healthChecker.startPeriodicChecks()
-      
+
       expect(healthChecker.isRunning).toBe(true)
       expect(healthChecker.intervalId).toBeDefined()
     })
@@ -334,18 +334,18 @@ describe('HealthChecker', () => {
     test('すでに実行中の場合は重複開始しない', () => {
       healthChecker.startPeriodicChecks()
       const firstIntervalId = healthChecker.intervalId
-      
+
       healthChecker.startPeriodicChecks()
-      
+
       expect(healthChecker.intervalId).toBe(firstIntervalId)
     })
 
     test('定期ヘルスチェックを停止できる', () => {
       healthChecker.startPeriodicChecks()
       expect(healthChecker.isRunning).toBe(true)
-      
+
       healthChecker.stopPeriodicChecks()
-      
+
       expect(healthChecker.isRunning).toBe(false)
       expect(healthChecker.intervalId).toBe(null)
     })
@@ -371,12 +371,12 @@ describe('HealthChecker', () => {
 
     test('履歴をファイルに保存できる', async () => {
       await healthChecker.performHealthCheck()
-      
+
       await healthChecker.saveHistoryToFile(testFilePath)
-      
+
       const fileContent = await fs.readFile(testFilePath, 'utf8')
       const data = JSON.parse(fileContent)
-      
+
       expect(data.exported).toBeDefined()
       expect(data.config).toBeDefined()
       expect(data.history).toHaveLength(1)
@@ -386,16 +386,16 @@ describe('HealthChecker', () => {
       // まず履歴を保存
       await healthChecker.performHealthCheck()
       await healthChecker.saveHistoryToFile(testFilePath)
-      
+
       // 新しいHealthCheckerインスタンスを作成
       const newChecker = new HealthChecker({ enableAlerts: false })
       expect(newChecker.healthHistory.length).toBe(0)
-      
+
       // 履歴を読み込み
       await newChecker.loadHistoryFromFile(testFilePath)
-      
+
       expect(newChecker.healthHistory.length).toBe(1)
-      
+
       newChecker.stopPeriodicChecks()
     })
 
@@ -410,13 +410,13 @@ describe('HealthChecker', () => {
     test('クリーンアップ処理が正常に実行される', async () => {
       healthChecker.startPeriodicChecks()
       await healthChecker.performHealthCheck()
-      
+
       expect(healthChecker.isRunning).toBe(true)
       expect(healthChecker.components.size).toBeGreaterThan(0)
       expect(healthChecker.healthHistory.length).toBeGreaterThan(0)
-      
+
       await healthChecker.cleanup()
-      
+
       expect(healthChecker.isRunning).toBe(false)
       expect(healthChecker.components.size).toBe(0)
       expect(healthChecker.healthHistory.length).toBe(0)
@@ -428,27 +428,27 @@ describe('HealthChecker', () => {
       // 不健全なコンポーネントを作成
       mockComponents.database.healthCheck.mockRejectedValue(new Error('DB failed'))
       mockComponents.redis.healthCheck.mockRejectedValue(new Error('Redis failed'))
-      
+
       // アラート送信をスパイ
       const alertSpy = jest.spyOn(healthChecker, 'sendAlert')
-      
+
       await healthChecker.performHealthCheck()
-      
+
       expect(alertSpy).not.toHaveBeenCalled()
     })
 
     test('アラートクールダウンが機能する', async () => {
       healthChecker.config.enableAlerts = true
-      
+
       const alertData = { type: 'test', message: 'Test alert' }
-      
+
       // 最初のアラート
       await healthChecker.sendAlert(alertData)
       const firstAlertTime = healthChecker.lastAlert
-      
+
       // すぐに次のアラートを送信（クールダウン中）
       await healthChecker.sendAlert(alertData)
-      
+
       expect(healthChecker.lastAlert).toBe(firstAlertTime)
     })
   })

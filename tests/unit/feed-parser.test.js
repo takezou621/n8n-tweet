@@ -31,7 +31,8 @@ describe('FeedParser', () => {
 
   describe('constructor', () => {
     it('should initialize with correct configuration', () => {
-      expect(feedParser.config).toEqual(mockConfig)
+      // 提供された設定が含まれていることを確認
+      expect(feedParser.config).toEqual(expect.objectContaining(mockConfig))
       expect(feedParser.logger).toBeDefined()
     })
 

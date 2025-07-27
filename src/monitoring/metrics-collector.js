@@ -178,7 +178,7 @@ class MetricsCollector {
     const cpuUsage = process.cpuUsage()
 
     // メモリメトリクス
-    this.setGauge('system_memory_used_bytes', memUsage.used)
+    this.setGauge('system_memory_used_bytes', memUsage.rss) // RSS (Resident Set Size)
     this.setGauge('system_memory_heap_used_bytes', memUsage.heapUsed)
     this.setGauge('system_memory_heap_total_bytes', memUsage.heapTotal)
     this.setGauge('system_memory_external_bytes', memUsage.external)
@@ -428,6 +428,58 @@ class MetricsCollector {
         filePath: sourcePath
       })
       throw error
+    }
+  }
+
+  /**
+   * ダッシュボードAPI用メトリクス取得
+   */
+  getMetrics () {
+    try {
+      const summary = this.getAllMetricsSummary()
+
+      // APIレスポンス用に整形
+      return {
+        timestamp: summary.timestamp,
+        timeRange: summary.timeRange,
+        system: {
+          memory: {
+            used: summary.metrics.system_memory_used_bytes?.currentValue || 0,
+            heap: summary.metrics.system_memory_heap_used_bytes?.currentValue || 0,
+            total: summary.metrics.system_memory_heap_total_bytes?.currentValue || 0
+          },
+          cpu: {
+            user: summary.metrics.system_cpu_user_microseconds?.currentValue || 0,
+            system: summary.metrics.system_cpu_system_microseconds?.currentValue || 0
+          },
+          uptime: summary.metrics.system_process_uptime_seconds?.currentValue || 0
+        },
+        application: {
+          twitter: {
+            totalPosts: summary.metrics.twitter_total_posts?.currentValue || 0,
+            successfulPosts: summary.metrics.twitter_successful_posts?.currentValue || 0,
+            failedPosts: summary.metrics.twitter_failed_posts?.currentValue || 0,
+            successRate: summary.metrics.twitter_success_rate_percentage?.currentValue || 0
+          },
+          rss: {
+            itemsProcessed: summary.metrics.rss_items_processed?.currentValue || 0,
+            itemsFiltered: summary.metrics.rss_items_filtered?.currentValue || 0,
+            itemsUnique: summary.metrics.rss_items_unique?.currentValue || 0,
+            tweetsGenerated: summary.metrics.tweets_generated?.currentValue || 0,
+            tweetsOptimal: summary.metrics.tweets_optimal?.currentValue || 0
+          },
+          components: {
+            total: summary.metrics.components_total?.currentValue || 0
+          }
+        },
+        customMetrics: Object.keys(summary.metrics).length
+      }
+    } catch (error) {
+      this.logger.error('Failed to get metrics for API', { error: error.message })
+      return {
+        timestamp: new Date().toISOString(),
+        error: 'Failed to retrieve metrics'
+      }
     }
   }
 
