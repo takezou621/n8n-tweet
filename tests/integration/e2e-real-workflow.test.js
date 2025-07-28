@@ -335,7 +335,7 @@ describe('Real End-to-End Workflow Tests', () => {
           }
         ]
 
-        const feedResults = await feedParser.parseMultipleFeeds(realFeeds)
+        let feedResults = await feedParser.parseMultipleFeeds(realFeeds)
         const duration = Date.now() - startTime
 
         expect(feedResults).toBeDefined()

@@ -122,7 +122,7 @@ describe('End-to-End Integration Tests', () => {
           category: 'research',
           enabled: true
         }])
-        
+
         // If successful but no articles returned, also use fallback
         const allArticles = feedResults.flatMap(result => result.articles || [])
         if (allArticles.length === 0) {
@@ -459,7 +459,9 @@ describe('End-to-End Integration Tests', () => {
         try {
           feedResults = await feedParser.parseMultipleFeeds(arxivFeeds)
           // Check if we got meaningful data
-          if (!feedResults || feedResults.length === 0 || !feedResults[0].articles || feedResults[0].articles.length === 0) {
+          const hasValidData = feedResults && feedResults.length > 0 &&
+            feedResults[0].articles && feedResults[0].articles.length > 0
+          if (!hasValidData) {
             throw new Error('No articles returned from ArXiv feed')
           }
         } catch (error) {
@@ -475,7 +477,7 @@ describe('End-to-End Integration Tests', () => {
             }]
           }]
         }
-        
+
         const fetchDuration = Date.now() - startTime
 
         // 基本的な検証
