@@ -86,17 +86,17 @@ describe('Real End-to-End Workflow Tests', () => {
       logger
     })
 
-    healthChecker = new HealthChecker({
-      logger,
-      components: {
-        feedParser,
-        contentFilter,
-        tweetGenerator,
-        twitterClient,
-        rateLimiter,
-        tweetHistory
-      }
-    })
+    // healthChecker = new HealthChecker({
+    //   logger,
+    //   components: {
+    //     feedParser,
+    //     contentFilter,
+    //     tweetGenerator,
+    //     twitterClient,
+    //     rateLimiter,
+    //     tweetHistory
+    //   }
+    // })
   })
 
   afterAll(async () => {

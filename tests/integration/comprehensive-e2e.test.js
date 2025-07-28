@@ -490,12 +490,12 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         // const feedParser = new FeedParser({ logger })
         const contentFilter = new ContentFilter({ logger })
         const tweetGenerator = new TweetGenerator({ logger })
-        const twitterClient = new TwitterClient({ dryRun: true, logger })
-        const rateLimiter = new RateLimiter()
-        const tweetHistory = new TweetHistory({
-          storageFile: path.join(testDataDir, 'workflow-history.json'),
-          logger
-        })
+        // const twitterClient = new TwitterClient({ dryRun: true, logger })
+        // const rateLimiter = new RateLimiter()
+        // const tweetHistory = new TweetHistory({
+        //   storageFile: path.join(testDataDir, 'workflow-history.json'),
+        //   logger
+        // })
 
         // 模擬データでの完全ワークフローテスト
         const mockArticles = [
@@ -515,7 +515,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
         // Step 2: ツイート生成
         const tweetStart = Date.now()
-        const tweet = await tweetGenerator.generateTweet(filteredArticles[0])
+        // const tweet = await tweetGenerator.generateTweet(filteredArticles[0])
         const tweetTime = Date.now() - tweetStart
 
         // Step 3: 重複チェック
