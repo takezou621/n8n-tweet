@@ -24,7 +24,7 @@ describe('Real End-to-End Workflow Tests', () => {
   let twitterClient
   let rateLimiter
   let tweetHistory
-  let healthChecker
+  // let healthChecker
   let logger
   let testDataDir
 
@@ -395,34 +395,34 @@ describe('Real End-to-End Workflow Tests', () => {
       for (const scenario of errorScenarios) {
         let feedResults = null
         let errorCaught = null
-        
+
         try {
           feedResults = await feedParser.parseMultipleFeeds([scenario.feed])
         } catch (error) {
           errorCaught = error
         }
-        
+
         // エラーケースと成功ケースの検証
         const errorCases = errorCaught ? [errorCaught] : []
         const successCases = !errorCaught && feedResults ? [feedResults] : []
-        
+
         errorCases.forEach(error => {
           expect(error).toBeInstanceOf(Error)
           logger.info(`Error scenario test completed: ${scenario.name}`, {
             error: error.message
           })
         })
-        
+
         successCases.forEach(results => {
           expect(results).toBeDefined()
           expect(Array.isArray(results)).toBe(true)
-          
+
           // 結果がある場合の検証
           results.slice(0, 1).forEach(result => {
             expect(result).toHaveProperty('feedName')
             expect(result.articles || result.error).toBeDefined()
           })
-          
+
           logger.info(`Error scenario handled correctly: ${scenario.name}`)
         })
       }

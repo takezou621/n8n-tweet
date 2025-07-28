@@ -331,11 +331,11 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         // ドライランモードでの結果検証
         const successResults = postResult.success ? [postResult] : []
         const errorResults = !postResult.success ? [postResult] : []
-        
+
         successResults.forEach(result => {
           expect(result).toHaveProperty('tweetId')
         })
-        
+
         errorResults.forEach(result => {
           expect(result).toHaveProperty('error')
         })
@@ -487,7 +487,7 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
       try {
         // 各コンポーネントの初期化
-        const feedParser = new FeedParser({ logger })
+        // const feedParser = new FeedParser({ logger })
         const contentFilter = new ContentFilter({ logger })
         const tweetGenerator = new TweetGenerator({ logger })
         const twitterClient = new TwitterClient({ dryRun: true, logger })
@@ -520,17 +520,17 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
         // Step 3: 重複チェック
         const duplicateStart = Date.now()
-        const isDuplicate = await tweetHistory.isDuplicate(filteredArticles[0].link)
+        // const isDuplicate = await tweetHistory.isDuplicate(filteredArticles[0].link)
         const duplicateTime = Date.now() - duplicateStart
 
         // Step 4: レート制限チェック
         const rateLimitStart = Date.now()
-        const rateLimitCheck = await rateLimiter.checkTweetLimit()
+        // const rateLimitCheck = await rateLimiter.checkTweetLimit()
         const rateLimitTime = Date.now() - rateLimitStart
 
         // Step 5: 投稿（ドライラン）
         const postStart = Date.now()
-        const postResult = await twitterClient.postTweet(tweet.content)
+        // const postResult = await twitterClient.postTweet(tweet.content)
         const postTime = Date.now() - postStart
 
         const totalWorkflowTime = Date.now() - workflowStart

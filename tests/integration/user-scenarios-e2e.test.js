@@ -151,23 +151,23 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
         // メモリ使用量検証 - 両方の状態をチェック
         const memoryUnavailable = memoryUsage === '--' ? [memoryUsage] : []
         const memoryAvailable = memoryUsage !== '--' ? [memoryUsage] : []
-        
+
         memoryUnavailable.forEach(usage => {
           expect(usage).toBe('--')
         })
-        
+
         memoryAvailable.forEach(usage => {
           expect(usage).not.toBe('--')
         })
-        
+
         // CPU使用量検証 - 両方の状態をチェック
         const cpuUnavailable = cpuUsage === '--' ? [cpuUsage] : []
         const cpuAvailable = cpuUsage !== '--' ? [cpuUsage] : []
-        
+
         cpuUnavailable.forEach(usage => {
           expect(usage).toBe('--')
         })
-        
+
         cpuAvailable.forEach(usage => {
           expect(usage).not.toBe('--')
         })
@@ -225,7 +225,7 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
       // チャート表示確認 - チャートコンテナが存在することを確認
       const chartContainer = await page.$('#metrics-chart')
       expect(chartContainer).toBeTruthy()
-      
+
       try {
         await page.waitForSelector('#metrics-chart canvas', { timeout: 15000 })
 
@@ -499,7 +499,7 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
       // 更新時刻が取得できることを確認
       expect(initialUpdateTime).toBeDefined()
       expect(updatedTime).toBeDefined()
-      
+
       // 更新時刻が変更されているか確認（失敗してもテストは続行）
       if (updatedTime !== initialUpdateTime && updatedTime !== '未更新') {
         console.log(`⏰ 更新時刻確認成功: ${initialUpdateTime} → ${updatedTime}`)
