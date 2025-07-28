@@ -698,6 +698,7 @@ class InputValidator {
 
     // 制御文字の除去
     if (rule.removeControlChars) {
+      /* eslint-disable-next-line no-control-regex */
       sanitized = sanitized.replace(/[\u0000-\u001F\u007F]/gu, '')
     }
 

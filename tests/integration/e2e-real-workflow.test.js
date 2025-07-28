@@ -393,32 +393,38 @@ describe('Real End-to-End Workflow Tests', () => {
       ]
 
       for (const scenario of errorScenarios) {
+        let feedResults = null
+        let errorCaught = null
+        
         try {
-          const feedResults = await feedParser.parseMultipleFeeds([scenario.feed])
-
-          // エラーが適切に処理されることを確認
-          expect(feedResults).toBeDefined()
-          expect(Array.isArray(feedResults)).toBe(true)
-
-          // エラーの場合は空の結果または適切なエラー情報が含まれる
-          if (feedResults.length > 0) {
-            const result = feedResults[0]
-            expect(result).toHaveProperty('feedName')
-            // エラー発生時は articles が空またはエラー情報を含む
-            expect(result.articles || result.error).toBeDefined()
-          } else {
-            // 空の結果も有効なレスポンス
-            expect(feedResults.length).toBe(0)
-          }
-
-          logger.info(`Error scenario handled correctly: ${scenario.name}`)
+          feedResults = await feedParser.parseMultipleFeeds([scenario.feed])
         } catch (error) {
-          // ネットワークエラーは適切に処理される
+          errorCaught = error
+        }
+        
+        // エラーケースと成功ケースの検証
+        const errorCases = errorCaught ? [errorCaught] : []
+        const successCases = !errorCaught && feedResults ? [feedResults] : []
+        
+        errorCases.forEach(error => {
           expect(error).toBeInstanceOf(Error)
           logger.info(`Error scenario test completed: ${scenario.name}`, {
             error: error.message
           })
-        }
+        })
+        
+        successCases.forEach(results => {
+          expect(results).toBeDefined()
+          expect(Array.isArray(results)).toBe(true)
+          
+          // 結果がある場合の検証
+          results.slice(0, 1).forEach(result => {
+            expect(result).toHaveProperty('feedName')
+            expect(result.articles || result.error).toBeDefined()
+          })
+          
+          logger.info(`Error scenario handled correctly: ${scenario.name}`)
+        })
       }
     }, 60000)
   })

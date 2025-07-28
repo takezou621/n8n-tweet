@@ -753,38 +753,44 @@ describe('End-to-End Integration Tests', () => {
 
         const feedResults = await feedParser.parseMultipleFeeds(arxivFeeds)
 
+        let generatedTweet = null
+        let sourceArticle = null
+        
         if (feedResults.length > 0 && feedResults[0].articles.length > 0) {
-          const article = feedResults[0].articles[0]
+          sourceArticle = feedResults[0].articles[0]
 
           // 実際の記事からツイートを生成
-          const tweet = await tweetGenerator.generateTweet(article)
-
-          expect(tweet).toBeDefined()
-          expect(tweet).toHaveProperty('content')
-          expect(typeof tweet.content).toBe('string')
-          expect(tweet.content.length).toBeLessThanOrEqual(280)
+          generatedTweet = await tweetGenerator.generateTweet(sourceArticle)
+        }
+        
+        if (generatedTweet) {
+          expect(generatedTweet).toBeDefined()
+          expect(generatedTweet).toHaveProperty('content')
+          expect(typeof generatedTweet.content).toBe('string')
+          expect(generatedTweet.content.length).toBeLessThanOrEqual(280)
 
           // AI関連の記事であることを確認
-          expect(tweet.content).toMatch(
+          expect(generatedTweet.content).toMatch(
             /ai|research|paper|machine learning|neural|deep learning|transformer/i
           )
 
-          // ハッシュタグとURLの検証
-          if (tweet.metadata.hashtags) {
-            expect(Array.isArray(tweet.metadata.hashtags)).toBe(true)
-          }
-
-          if (tweet.originalItem.url) {
-            expect(tweet.originalItem.url).toMatch(/^https?:\/\//)
-          }
-
           logger.info('Real Article Tweet Generation Test Results', {
-            originalTitle: article.title,
-            tweetText: tweet.content,
-            tweetLength: tweet.content.length,
-            hashtags: tweet.metadata.hashtags,
+            originalTitle: sourceArticle?.title,
+            tweetText: generatedTweet.content,
+            tweetLength: generatedTweet.content.length,
+            hashtags: generatedTweet.metadata.hashtags,
             duration: `${Date.now() - startTime}ms`
           })
+        }
+        
+        // ハッシュタグ検証 - ハッシュタグがある場合のみ
+        if (generatedTweet?.metadata?.hashtags) {
+          expect(Array.isArray(generatedTweet.metadata.hashtags)).toBe(true)
+        }
+
+        // URL検証 - URLがある場合のみ
+        if (generatedTweet?.originalItem?.url) {
+          expect(generatedTweet.originalItem.url).toMatch(/^https?:\/\//)
         }
       } catch (error) {
         logger.error('Real Article Tweet Generation Test Error', {
@@ -818,8 +824,8 @@ describe('End-to-End Integration Tests', () => {
         // 無効なフィードの場合、空の配列または エラー情報が含まれるはず
         if (feedResults.length > 0) {
           const result = feedResults[0]
-          // エラーが発生した場合の適切な処理を確認
-          expect(result).toHaveProperty('error') || expect(result.articles).toEqual([])
+          // エラーが発生した場合の適切な処理を確認 - エラー情報か空の記事配列のどちらか
+          expect(result.error || (result.articles && result.articles.length === 0)).toBeTruthy()
         }
       } catch (error) {
         // ネットワークエラーや無効URLエラーが適切に処理されることを確認

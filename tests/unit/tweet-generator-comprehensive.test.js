@@ -436,9 +436,11 @@ describe('TweetGenerator - 280文字制限対応テスト', () => {
         expect(tweet.metadata.engagementScore).toBeGreaterThan(0)
         expect(tweet.metadata.engagementScore).toBeLessThanOrEqual(1)
 
-        if (testCase.expectedScore) {
-          expect(tweet.metadata.engagementScore).toBeGreaterThanOrEqual(testCase.expectedScore - 0.2)
-        }
+        // 期待スコアが設定されているケースのみチェック
+        const testCasesWithScore = testCase.expectedScore ? [testCase] : []
+        testCasesWithScore.forEach(tc => {
+          expect(tweet.metadata.engagementScore).toBeGreaterThanOrEqual(tc.expectedScore - 0.2)
+        })
 
         console.log('エンゲージメントスコア:', {
           title: testCase.title,

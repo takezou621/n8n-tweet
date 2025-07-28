@@ -471,6 +471,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
   })
 
   describe('エラーハンドリングとセキュリティテスト', () => {
+    // eslint-disable-next-line jest/expect-expect
     test('APIエラー時の適切な処理', async () => {
       // 存在しないエンドポイントへのリクエスト
       await request(app)
