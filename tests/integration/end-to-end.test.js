@@ -719,13 +719,13 @@ describe('End-to-End Integration Tests', () => {
           })
         }
 
-          logger.info('Real Article AI Filtering Test Results', {
-            originalArticles: allArticles.length,
-            filteredArticles: filteredArticles.length,
-            filterRatio: filteredArticles.length / allArticles.length,
-            duration: `${Date.now() - startTime}ms`
-          })
-        }
+        const allArticles = feedResults.flatMap(result => result.articles)
+        logger.info('Real Article AI Filtering Test Results', {
+          originalArticles: allArticles ? allArticles.length : 0,
+          filteredArticles: filteredArticles.length,
+          filterRatio: allArticles && allArticles.length > 0 ? filteredArticles.length / allArticles.length : 0,
+          duration: `${Date.now() - startTime}ms`
+        })
       } catch (error) {
         logger.error('Real Article AI Filtering Test Error', {
           error: error.message,
