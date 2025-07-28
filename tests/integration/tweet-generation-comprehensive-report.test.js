@@ -145,7 +145,9 @@ describe('Tweet Generation Comprehensive Report', () => {
         minLength: Math.min(...results.map(r => r.tweetLength)),
         optimizedCount: results.filter(r => r.isOptimized).length,
         withUrlCount: results.filter(r => r.hasUrl).length,
-        averageEngagement: Math.round(results.reduce((sum, r) => sum + r.engagementScore, 0) / results.length * 100) / 100
+        averageEngagement: Math.round(
+          results.reduce((sum, r) => sum + r.engagementScore, 0) / results.length * 100
+        ) / 100
       }
 
       console.log('\n=== 統計結果 ===')
@@ -219,7 +221,9 @@ describe('Tweet Generation Comprehensive Report', () => {
         const avgLength = Math.round(stats.lengths.reduce((sum, l) => sum + l, 0) / stats.lengths.length)
         const maxLength = Math.max(...stats.lengths)
         const minLength = Math.min(...stats.lengths)
-        const avgEngagement = Math.round(stats.engagements.reduce((sum, e) => sum + e, 0) / stats.engagements.length * 100) / 100
+        const avgEngagement = Math.round(
+          stats.engagements.reduce((sum, e) => sum + e, 0) / stats.engagements.length * 100
+        ) / 100
 
         console.log(`\n${category.toUpperCase()} カテゴリ:`)
         console.log(`  記事数: ${stats.count}`)

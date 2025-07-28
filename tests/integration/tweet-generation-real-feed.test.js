@@ -85,7 +85,9 @@ describe('Real RSS Feed Tweet Generation Integration Test', () => {
         averageLength: Math.round(results.reduce((sum, r) => sum + r.tweetLength, 0) / results.length),
         maxLength: Math.max(...results.map(r => r.tweetLength)),
         minLength: Math.min(...results.map(r => r.tweetLength)),
-        averageEngagement: Math.round(results.reduce((sum, r) => sum + r.engagementScore, 0) / results.length * 100) / 100
+        averageEngagement: Math.round(
+          results.reduce((sum, r) => sum + r.engagementScore, 0) / results.length * 100
+        ) / 100
       }
 
       console.log('=== 実際のRSSフィードデータ 280文字制限テスト結果 ===')

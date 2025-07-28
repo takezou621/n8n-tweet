@@ -651,7 +651,7 @@ describe('End-to-End Integration Tests', () => {
             totalArticles += result.articles.length
           }
         })
-        
+
         // 成功したフィードの基本検証
         const validResults = feedResults.filter(result => result && result.articles)
         validResults.forEach((result, index) => {
@@ -699,14 +699,14 @@ describe('End-to-End Integration Tests', () => {
         const feedResults = await feedParser.parseMultipleFeeds(arxivFeeds)
 
         let filteredArticles = []
-        
+
         if (feedResults.length > 0 && feedResults[0].articles.length > 0) {
           const allArticles = feedResults.flatMap(result => result.articles)
 
           // AI関連度フィルタリングを実行
           filteredArticles = await contentFilter.filterRelevantContent(allArticles)
         }
-        
+
         expect(Array.isArray(filteredArticles)).toBe(true)
 
         // ArXiv CS.AIフィードの記事は高いAI関連度を持つはず
@@ -755,14 +755,14 @@ describe('End-to-End Integration Tests', () => {
 
         let generatedTweet = null
         let sourceArticle = null
-        
+
         if (feedResults.length > 0 && feedResults[0].articles.length > 0) {
           sourceArticle = feedResults[0].articles[0]
 
           // 実際の記事からツイートを生成
           generatedTweet = await tweetGenerator.generateTweet(sourceArticle)
         }
-        
+
         if (generatedTweet) {
           expect(generatedTweet).toBeDefined()
           expect(generatedTweet).toHaveProperty('content')
@@ -782,7 +782,7 @@ describe('End-to-End Integration Tests', () => {
             duration: `${Date.now() - startTime}ms`
           })
         }
-        
+
         // ハッシュタグ検証 - ハッシュタグがある場合のみ
         if (generatedTweet?.metadata?.hashtags) {
           expect(Array.isArray(generatedTweet.metadata.hashtags)).toBe(true)

@@ -149,7 +149,7 @@ describe('TweetGenerator - 280文字制限対応テスト', () => {
 
         expect(tweet).toBeTruthy()
         expect(tweet.content.length).toBeLessThanOrEqual(280)
-        expect(tweet.content).toMatch(/[🔬📊🧪]/) // Research emojis
+        expect(tweet.content).toMatch(/[🔬📊🧪]/u) // Research emojis
         expect(tweet.metadata.engagementScore).toBeGreaterThan(0.5)
 
         console.log('ArXiv記事ツイート:', {
@@ -470,7 +470,7 @@ describe('TweetGenerator - 280文字制限対応テスト', () => {
       expect(tweet.content.length).toBeLessThanOrEqual(280)
 
       // 内容が適切に含まれているかチェック
-      expect(tweet.content).toMatch(/[🔬📊🧪]/) // Research emojis
+      expect(tweet.content).toMatch(/[🔬📊🧪]/u) // Research emojis
       expect(tweet.content).toMatch(/#\w+/) // Has hashtags
       expect(tweet.content).toContain('http') // Has URL
 

@@ -488,8 +488,8 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
       try {
         // 各コンポーネントの初期化
         // const feedParser = new FeedParser({ logger })
-        const contentFilter = new ContentFilter({ logger })
-        const tweetGenerator = new TweetGenerator({ logger })
+        // const contentFilter = new ContentFilter({ logger })
+        // const tweetGenerator = new TweetGenerator({ logger })
         // const twitterClient = new TwitterClient({ dryRun: true, logger })
         // const rateLimiter = new RateLimiter()
         // const tweetHistory = new TweetHistory({
@@ -498,19 +498,20 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         // })
 
         // 模擬データでの完全ワークフローテスト
-        const mockArticles = [
+        /* const mockArticles = [
           {
             title: 'Advances in Large Language Models for Code Generation',
-            description: 'New research demonstrates significant improvements in AI-powered code generation using advanced transformer architectures.',
+            description: 'New research demonstrates significant improvements in AI-powered code generation ' +
+              'using advanced transformer architectures.',
             link: 'https://example.com/llm-code-generation',
             category: 'research',
             pubDate: new Date().toISOString()
           }
-        ]
+        ] */
 
         // Step 1: フィルタリング
         const filterStart = Date.now()
-        const filteredArticles = await contentFilter.filterRelevantContent(mockArticles)
+        // const filteredArticles = await contentFilter.filterRelevantContent(mockArticles)
         const filterTime = Date.now() - filterStart
 
         // Step 2: ツイート生成

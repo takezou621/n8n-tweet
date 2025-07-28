@@ -14,7 +14,7 @@ const TweetGenerator = require('../../src/generators/tweet-generator')
 const TwitterClient = require('../../src/integrations/twitter-client')
 const RateLimiter = require('../../src/utils/rate-limiter')
 const TweetHistory = require('../../src/storage/tweet-history')
-const HealthChecker = require('../../src/monitoring/health-checker')
+// const HealthChecker = require('../../src/monitoring/health-checker')
 const { createLogger } = require('../../src/utils/logger')
 
 describe('Real End-to-End Workflow Tests', () => {
@@ -486,7 +486,9 @@ describe('Real End-to-End Workflow Tests', () => {
             tweetGeneration: {
               duration: tweetTime,
               tweetsPerSecond: Math.round(tweets.length / (tweetTime / 1000)),
-              averageTweetLength: tweets.length > 0 ? Math.round(tweets.reduce((sum, t) => sum + t.content.length, 0) / tweets.length) : 0
+              averageTweetLength: tweets.length > 0
+                ? Math.round(tweets.reduce((sum, t) => sum + t.content.length, 0) / tweets.length)
+                : 0
             }
           }
         }
@@ -543,7 +545,8 @@ describe('Real End-to-End Workflow Tests', () => {
 
           // AI関連コンテンツの検証
           const content = tweet.content.toLowerCase()
-          const hasAIContent = /ai|artificial intelligence|machine learning|deep learning|neural|research|algorithm/.test(content)
+          const hasAIContent =
+            /ai|artificial intelligence|machine learning|deep learning|neural|research|algorithm/.test(content)
           expect(hasAIContent).toBe(true)
 
           logger.info('Tweet quality verified', {
