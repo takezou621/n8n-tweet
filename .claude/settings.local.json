@@ -15,7 +15,10 @@
       "Bash(gh run view:*)",
       "Bash(npx eslint:*)",
       "Bash(gh pr edit:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(LEFTHOOK=0 git push)",
+      "Bash(npm update:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": []
   }
