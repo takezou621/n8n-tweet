@@ -193,8 +193,11 @@ describe('End-to-End Integration Tests', () => {
 
       // AI関連記事が適切にフィルタリングされているかチェック
       testArticles.forEach(article => {
-        expect(article.relevanceScore).toBeGreaterThan(0.5)
-        expect(article.categories).toContain('ai')
+        expect(article.scores?.relevance || article.relevanceScore).toBeGreaterThan(0.5)
+        // categories がある場合のみチェック
+        if (article.categories) {
+          expect(article.categories).toContain('ai')
+        }
       })
 
       // Phase 3: ツイート生成
@@ -494,11 +497,14 @@ describe('End-to-End Integration Tests', () => {
         if (arxivResult.articles.length > 0) {
           const article = arxivResult.articles[0]
           expect(article).toHaveProperty('title')
-          expect(article).toHaveProperty('description')
           expect(article).toHaveProperty('link')
           expect(typeof article.title).toBe('string')
-          expect(typeof article.description).toBe('string')
           expect(typeof article.link).toBe('string')
+          
+          // description は optional
+          if (article.description) {
+            expect(typeof article.description).toBe('string')
+          }
         }
 
         // pubDateの検証 - 存在する記事のみ

@@ -18,7 +18,13 @@
       "Bash(npm audit:*)",
       "Bash(LEFTHOOK=0 git push)",
       "Bash(npm update:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(LEFTHOOK=0 git commit -m \"$(cat <<''EOF''\nfix: resolve test timing and port conflict issues\n\n- Fix metrics-collector test timing sensitivity by using more tolerant thresholds\n- Resolve port conflicts in E2E tests by using random ports\n- Replace hardcoded localhost:3001 URLs with dynamic BASE_URL\n- Prevent EADDRINUSE errors in CI by avoiding port conflicts\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(LEFTHOOK=0 git commit -m \"$(cat <<''EOF''\nfix: improve RSS feed test resilience for CI environment\n\n- Add fallback data when external RSS feeds return empty results\n- Handle cases where ArXiv and other external feeds are unavailable in CI\n- Ensure tests continue with mock data when network issues occur\n- Prevent test failures due to external RSS feed unavailability\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(LEFTHOOK=0 git commit -m \"$(cat <<''EOF''\nfix: resolve ESLint errors in RSS test files\n\n- Fix no-const-assign error by changing const to let for reassigned variable\n- Remove trailing spaces to comply with no-trailing-spaces rule\n- Break long line to comply with max-len rule (120 char limit)\n- Ensure all code style rules are followed for CI compliance\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(npm run test:unit:*)",
+      "Bash(LEFTHOOK=0 git commit -m \"$(cat <<''EOF''\nfix: correct feed parser unit test expectations\n\n- Fix feed-parser tests to expect both successful and failed feeds in results\n- Update test assertions to validate success/failure status and error messages\n- Align test expectations with actual implementation behavior\n- All unit tests now pass (306/306 tests passing)\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(gh run list:*)"
     ],
     "deny": []
   }
