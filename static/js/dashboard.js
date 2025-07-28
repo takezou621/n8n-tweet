@@ -247,7 +247,10 @@ class Dashboard {
         this.updateStatusBadge('system-status', healthData.components.system?.status || 'unknown');
         this.updateStatusBadge('redis-status', healthData.components.redis?.status || 'unknown');
         this.updateStatusBadge('n8n-status', healthData.components.n8n?.status || 'unknown');
-        this.updateStatusBadge('twitter-status', healthData.components.twitter?.status || 'unknown');
+        this.updateStatusBadge(
+          'twitter-status',
+          healthData.components.twitter?.status || 'unknown'
+        );
 
         // Update detailed health information
         this.updateHealthDetails(healthData);
@@ -408,7 +411,11 @@ class Dashboard {
                             <span class="badge bg-secondary">${tweet.category}</span>
                             <small class="ms-2">${date}</small>
                         </div>
-                        ${tweet.url ? `<a href="${tweet.url}" target="_blank" class="btn btn-sm btn-outline-primary">表示</a>` : ''}
+                        ${tweet.url
+                          ? `<a href="${tweet.url}" target="_blank" ` +
+                            `class="btn btn-sm btn-outline-primary">表示</a>`
+                          : ''
+                        }
                     </div>
                 </div>
             </div>
@@ -443,7 +450,10 @@ class Dashboard {
                                 ${this.getStatusBadge(feed.status)}
                             </td>
                             <td>
-                                ${feed.lastUpdate ? new Date(feed.lastUpdate).toLocaleString('ja-JP') : '不明'}
+                                ${feed.lastUpdate
+                                  ? new Date(feed.lastUpdate).toLocaleString('ja-JP')
+                                  : '不明'
+                                }
                             </td>
                             <td>${feed.itemCount}</td>
                             <td>
@@ -566,7 +576,9 @@ class Dashboard {
 
         const alertId = `alert-${Date.now()}`;
         const alertHtml = `
-            <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show alert-floating" role="alert">
+            <div id="${alertId}" class="alert alert-${type} alert-dismissible ` +
+              `fade show alert-floating"
+                 role="alert">
                 ${this.escapeHtml(message)}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>

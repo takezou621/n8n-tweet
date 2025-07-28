@@ -527,26 +527,27 @@ class AITweetBot {
 // CLI実行時の処理
 if (require.main === module) {
   const bot = new AITweetBot()
+  const logger = bot.logger
 
   bot.start()
     .then(() => {
-      this.logger.info('✅ AI Tweet Bot is running')
+      logger.info('✅ AI Tweet Bot is running')
 
       // Graceful shutdown
       process.on('SIGINT', async () => {
-        this.logger.info('🛑 Shutting down gracefully...')
+        logger.info('🛑 Shutting down gracefully...')
         await bot.stop()
         process.exit(0)
       })
 
       process.on('SIGTERM', async () => {
-        this.logger.info('🛑 Received SIGTERM, shutting down...')
+        logger.info('🛑 Received SIGTERM, shutting down...')
         await bot.stop()
         process.exit(0)
       })
     })
     .catch(error => {
-      this.logger.error('❌ Failed to start AI Tweet Bot:', error.message)
+      logger.error('❌ Failed to start AI Tweet Bot:', error.message)
       process.exit(1)
     })
 }

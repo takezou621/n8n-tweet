@@ -1,0 +1,36 @@
+# Proxmox Configuration
+proxmox_api_url          = "https://your-proxmox-host:8006/api2/json"
+proxmox_api_token_id     = "terraform@pam!terraform-token"
+proxmox_api_token_secret = "your-api-token-secret"
+proxmox_tls_insecure     = false
+proxmox_node             = "pve"
+
+# Container Configuration
+template_name    = "ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
+storage_pool     = "local-lvm"
+network_bridge   = "vmbr0"
+container_cores  = 4
+container_memory = 8192
+container_swap   = 4096
+root_disk_size   = "32G"
+
+# SSH Configuration
+ssh_public_key = "ssh-rsa AAAAB3NzaC1... your-public-key"
+
+# Application Configuration
+domain_name = "your-domain.com"
+
+# n8n Configuration
+n8n_basic_auth_user     = "admin"
+n8n_basic_auth_password = "secure-password-here"
+
+# Database Configuration
+postgres_password = "secure-postgres-password"
+redis_password    = "secure-redis-password"
+
+# Twitter API Configuration
+twitter_bearer_token        = "your-bearer-token"
+twitter_api_key            = "your-api-key"
+twitter_api_secret         = "your-api-secret"
+twitter_access_token       = "your-access-token"
+twitter_access_token_secret = "your-access-token-secret"

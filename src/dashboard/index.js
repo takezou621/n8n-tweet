@@ -117,7 +117,7 @@ class DashboardServer {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net', 
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net',
             'https://cdnjs.cloudflare.com'],
           scriptSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://cdnjs.cloudflare.com'],
           fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],

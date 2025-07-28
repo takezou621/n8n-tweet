@@ -148,7 +148,11 @@ class N8nAutoSetup {
         }
       }
 
-      const response = await axios.post(`${this.baseUrl}/rest/workflows`, workflowData, { headers });
+      const response = await axios.post(
+        `${this.baseUrl}/rest/workflows`,
+        workflowData,
+        { headers }
+      )
 
       if (response.status === 200) {
         // n8nのレスポンスは{ data: { id: ..., name: ..., ... } }の形式

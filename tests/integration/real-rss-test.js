@@ -18,13 +18,13 @@ const TweetHistory = require('../../src/storage/tweet-history')
 const { createLogger } = require('../../src/utils/logger')
 
 class RealRSSIntegrationTest {
-  constructor() {
+  constructor () {
     this.logger = createLogger('real-rss-test', {
       logDir: './logs',
       enableConsole: true,
       level: 'info'
     })
-    
+
     this.testResults = {
       startTime: new Date(),
       feeds: [],
@@ -36,7 +36,7 @@ class RealRSSIntegrationTest {
     this.initializeComponents()
   }
 
-  initializeComponents() {
+  initializeComponents () {
     // テスト用RSS フィード設定読み込み
     const rssConfig = JSON.parse(
       fs.readFileSync(path.join(__dirname, '../data/test-rss-feeds.json'), 'utf8')
@@ -84,16 +84,16 @@ class RealRSSIntegrationTest {
 
     // 有効なフィードのみを選択
     this.realFeeds = rssConfig.feeds.filter(feed => feed.enabled)
-    
+
     this.logger.info('Real RSS Integration Test initialized', {
       enabledFeeds: this.realFeeds.length,
       feedUrls: this.realFeeds.map(f => f.url)
     })
   }
 
-  async runFullTest() {
+  async runFullTest () {
     this.logger.info('Starting Real RSS Feed Integration Test...')
-    
+
     try {
       // Phase 1: 個別フィードテスト
       await this.testIndividualFeeds()
@@ -112,7 +112,6 @@ class RealRSSIntegrationTest {
 
       // テスト結果のサマリー
       this.generateTestSummary()
-
     } catch (error) {
       this.logger.error('Test execution failed', { error: error.message })
       this.testResults.errors.push({
@@ -125,15 +124,15 @@ class RealRSSIntegrationTest {
     return this.testResults
   }
 
-  async testIndividualFeeds() {
+  async testIndividualFeeds () {
     this.logger.info('Phase 1: Testing individual RSS feeds...')
-    
+
     for (const feed of this.realFeeds.slice(0, 3)) { // 最初の3つのフィードをテスト
       const startTime = Date.now()
-      
+
       try {
         this.logger.info(`Testing feed: ${feed.name} (${feed.url})`)
-        
+
         const feedResults = await this.feedParser.parseMultipleFeeds([feed])
         const duration = Date.now() - startTime
 
@@ -158,7 +157,6 @@ class RealRSSIntegrationTest {
 
         this.testResults.feeds.push(result)
         this.logger.info(`Feed test completed: ${feed.name}`, result)
-
       } catch (error) {
         const errorResult = {
           feedName: feed.name,
@@ -176,11 +174,11 @@ class RealRSSIntegrationTest {
     }
   }
 
-  async testConcurrentFeeds() {
+  async testConcurrentFeeds () {
     this.logger.info('Phase 2: Testing concurrent feed processing...')
-    
+
     const startTime = Date.now()
-    
+
     try {
       const testFeeds = this.realFeeds.slice(0, 3) // 最初の3つで並行処理テスト
       const feedResults = await this.feedParser.parseMultipleFeeds(testFeeds)
@@ -201,7 +199,6 @@ class RealRSSIntegrationTest {
 
       this.testResults.performance.concurrent = concurrentResult
       this.logger.info('Concurrent feed processing test completed', concurrentResult)
-
     } catch (error) {
       this.testResults.errors.push({
         phase: 'concurrent-processing',
@@ -213,11 +210,11 @@ class RealRSSIntegrationTest {
     }
   }
 
-  async testCompleteWorkflow() {
+  async testCompleteWorkflow () {
     this.logger.info('Phase 3: Testing complete workflow...')
-    
+
     const startTime = Date.now()
-    
+
     try {
       // MIT Technology Reviewフィードで完全ワークフローをテスト
       const testFeed = this.realFeeds.find(f => f.name.includes('MIT Technology'))
@@ -243,12 +240,12 @@ class RealRSSIntegrationTest {
       if (filteredArticles.length > 0) {
         tweet = await this.tweetGenerator.generateTweet(filteredArticles[0])
         this.logger.info('Generated tweet', {
-          tweet: tweet,
+          tweet,
           text: tweet?.text?.substring(0, 100),
           length: tweet?.text?.length,
           hashtags: tweet?.hashtags
         })
-        
+
         // ツイートテキストが生成されていない場合は簡単な代替案を作成
         if (!tweet || !tweet.text) {
           const article = filteredArticles[0]
@@ -271,7 +268,7 @@ class RealRSSIntegrationTest {
       let postResult = null
       if (tweet && !isDuplicate && rateLimitCheck.allowed) {
         postResult = await this.twitterClient.postTweet(tweet.text)
-        
+
         if (postResult.success) {
           await this.tweetHistory.saveTweet({
             url: article.link,
@@ -299,7 +296,6 @@ class RealRSSIntegrationTest {
 
       this.testResults.performance.workflow = workflowResult
       this.logger.info('Complete workflow test completed', workflowResult)
-
     } catch (error) {
       this.testResults.errors.push({
         phase: 'complete-workflow',
@@ -311,9 +307,9 @@ class RealRSSIntegrationTest {
     }
   }
 
-  async testErrorHandling() {
+  async testErrorHandling () {
     this.logger.info('Phase 4: Testing error handling...')
-    
+
     const errorTests = [
       {
         name: 'Invalid URL',
@@ -338,7 +334,7 @@ class RealRSSIntegrationTest {
 
     for (const errorTest of errorTests) {
       const startTime = Date.now()
-      
+
       try {
         let parser = this.feedParser
         if (errorTest.timeout) {
@@ -349,9 +345,9 @@ class RealRSSIntegrationTest {
         }
 
         const result = await parser.parseMultipleFeeds([errorTest.feed])
-        
+
         // エラーが適切に処理されたかチェック
-        const errorHandled = !result || result.length === 0 || 
+        const errorHandled = !result || result.length === 0 ||
                            (result[0] && (result[0].error || result[0].articles?.length === 0))
 
         this.testResults.performance.errorHandling = this.testResults.performance.errorHandling || []
@@ -366,7 +362,6 @@ class RealRSSIntegrationTest {
           errorHandled,
           duration: Date.now() - startTime
         })
-
       } catch (error) {
         // エラーが適切にキャッチされることも正常な動作
         this.testResults.performance.errorHandling = this.testResults.performance.errorHandling || []
@@ -384,13 +379,13 @@ class RealRSSIntegrationTest {
     }
   }
 
-  async testPerformance() {
+  async testPerformance () {
     this.logger.info('Phase 5: Testing performance...')
-    
+
     try {
       // メモリ使用量測定
       const memUsageBefore = process.memoryUsage()
-      
+
       // 大量記事の模擬処理
       const mockArticles = Array.from({ length: 100 }, (_, i) => ({
         title: `Performance Test Article ${i}`,
@@ -436,7 +431,6 @@ class RealRSSIntegrationTest {
 
       this.testResults.performance.bulk = performanceResult
       this.logger.info('Performance test completed', performanceResult)
-
     } catch (error) {
       this.testResults.errors.push({
         phase: 'performance',
@@ -447,7 +441,7 @@ class RealRSSIntegrationTest {
     }
   }
 
-  generateTestSummary() {
+  generateTestSummary () {
     this.testResults.endTime = new Date()
     this.testResults.totalDuration = this.testResults.endTime - this.testResults.startTime
 
@@ -472,7 +466,7 @@ class RealRSSIntegrationTest {
     this.logger.info('Performance Tests Completed:', summary.performanceTests)
 
     if (this.testResults.performance.concurrent) {
-      this.logger.info('Concurrent Processing:', 
+      this.logger.info('Concurrent Processing:',
         `${this.testResults.performance.concurrent.totalArticles} articles from ` +
         `${this.testResults.performance.concurrent.successfulFeeds} feeds in ` +
         `${this.testResults.performance.concurrent.totalDuration}ms`
@@ -480,7 +474,7 @@ class RealRSSIntegrationTest {
     }
 
     if (this.testResults.performance.workflow) {
-      this.logger.info('Complete Workflow:', 
+      this.logger.info('Complete Workflow:',
         `${this.testResults.performance.workflow.originalArticles} → ` +
         `${this.testResults.performance.workflow.filteredArticles} articles filtered, ` +
         `tweet generated: ${this.testResults.performance.workflow.tweetGenerated}`
@@ -490,7 +484,7 @@ class RealRSSIntegrationTest {
     this.logger.info('=== END SUMMARY ===')
   }
 
-  async saveResults() {
+  async saveResults () {
     const resultsFile = path.join(__dirname, '../test-reports/real-rss-integration-results.json')
     const reportFile = path.join(__dirname, '../test-reports/real-rss-integration-report.md')
 
@@ -504,7 +498,7 @@ class RealRSSIntegrationTest {
     this.logger.info('Test results saved', { resultsFile, reportFile })
   }
 
-  generateMarkdownReport() {
+  generateMarkdownReport () {
     const { summary, performance, feeds, errors } = this.testResults
 
     return `# Real RSS Feed Integration Test Report
@@ -520,50 +514,58 @@ class RealRSSIntegrationTest {
 
 | Feed Name | URL | Status | Articles | Duration | Sample Article |
 |-----------|-----|--------|----------|----------|----------------|
-${feeds.map(feed => 
+${feeds.map(feed =>
   `| ${feed.feedName} | ${feed.feedUrl} | ${feed.success ? '✅' : '❌'} | ${feed.articlesCount || 0} | ${feed.duration}ms | ${feed.sampleArticle?.title || 'N/A'} |`
 ).join('\n')}
 
 ## Performance Results
 
 ### Concurrent Processing
-${performance.concurrent ? `
+${performance.concurrent
+? `
 - **Total Feeds**: ${performance.concurrent.totalFeeds}
 - **Successful Feeds**: ${performance.concurrent.successfulFeeds}
 - **Total Articles**: ${performance.concurrent.totalArticles}
 - **Total Duration**: ${performance.concurrent.totalDuration}ms
 - **Average per Feed**: ${performance.concurrent.averageDurationPerFeed}ms
 - **Efficiency**: ${performance.concurrent.efficiency ? '✅ Efficient' : '⚠️ Needs improvement'}
-` : 'Not tested'}
+`
+: 'Not tested'}
 
 ### Complete Workflow
-${performance.workflow ? `
+${performance.workflow
+? `
 - **Original Articles**: ${performance.workflow.originalArticles}
 - **Filtered Articles**: ${performance.workflow.filteredArticles}
 - **Filter Ratio**: ${Math.round(performance.workflow.filterRatio * 100)}%
 - **Tweet Generated**: ${performance.workflow.tweetGenerated ? '✅' : '❌'}
 - **Rate Limit Passed**: ${performance.workflow.rateLimitPassed ? '✅' : '❌'}
 - **Post Successful**: ${performance.workflow.postSuccessful ? '✅' : '❌'}
-` : 'Not tested'}
+`
+: 'Not tested'}
 
 ### Bulk Processing
-${performance.bulk ? `
+${performance.bulk
+? `
 - **Articles Processed**: ${performance.bulk.bulkFiltering.totalArticles}
 - **Filtered Articles**: ${performance.bulk.bulkFiltering.filteredArticles}
 - **Processing Speed**: ${performance.bulk.bulkFiltering.articlesPerSecond} articles/second
 - **Tweet Generation**: ${performance.bulk.tweetGeneration.averageDuration}ms average
 - **Memory Usage**: ${performance.bulk.memory.heapUsedDelta}MB heap delta
-` : 'Not tested'}
+`
+: 'Not tested'}
 
 ## Error Analysis
 
-${errors.length > 0 ? `
+${errors.length > 0
+? `
 | Phase | Error | Timestamp |
 |-------|-------|-----------|
-${errors.map(error => 
+${errors.map(error =>
   `| ${error.phase} | ${error.error} | ${error.timestamp} |`
 ).join('\n')}
-` : 'No errors occurred ✅'}
+`
+: 'No errors occurred ✅'}
 
 ## Recommendations
 
@@ -574,7 +576,7 @@ ${this.generateRecommendations()}
 `
   }
 
-  generateRecommendations() {
+  generateRecommendations () {
     const { summary, performance, errors } = this.testResults
     const recommendations = []
 
@@ -603,16 +605,15 @@ ${this.generateRecommendations()}
 }
 
 // 実行部分
-async function main() {
+async function main () {
   const tester = new RealRSSIntegrationTest()
-  
+
   try {
     await tester.runFullTest()
     await tester.saveResults()
-    
+
     const { summary } = tester.testResults
     process.exit(summary.errorsTotal > 0 ? 1 : 0)
-    
   } catch (error) {
     console.error('Test execution failed:', error)
     process.exit(1)
