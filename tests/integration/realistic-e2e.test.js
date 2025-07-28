@@ -56,8 +56,10 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
     await initializeSystemComponents()
 
     // ダッシュボードサーバー起動
+    const PORT = 3002 + Math.floor(Math.random() * 1000) // Use random port to avoid conflicts
+    global.TEST_BASE_URL = `http://localhost:${PORT}` // Store for use in tests
     dashboardServer = new DashboardServer({
-      port: 3001, // テスト用ポート
+      port: PORT,
       logLevel: 'error' // ノイズ削減
     })
 
@@ -372,7 +374,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
       logger.info('=== 非技術者ユーザーの利用シナリオ開始 ===')
 
       // ダッシュボードページの読み込み
-      await page.goto('http://localhost:3001', { waitUntil: 'networkidle2' })
+      await page.goto(global.TEST_BASE_URL, { waitUntil: 'networkidle2' })
 
       // ページタイトルの確認
       const title = await page.title()
@@ -397,7 +399,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
     }, 15000)
 
     test('直感的なUIでシステム状況確認', async () => {
-      await page.goto('http://localhost:3001', { waitUntil: 'networkidle2' })
+      await page.goto(global.TEST_BASE_URL, { waitUntil: 'networkidle2' })
 
       // ヘルスカードの表示確認
       const healthCards = await page.$$('.health-card')
@@ -424,7 +426,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
     })
 
     test('フィルタリング機能でデータ検索', async () => {
-      await page.goto('http://localhost:3001', { waitUntil: 'networkidle2' })
+      await page.goto(global.TEST_BASE_URL, { waitUntil: 'networkidle2' })
 
       // ツイート履歴タブに切り替え
       await page.click('[data-tab="tweets"]')
@@ -451,7 +453,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
     test('レスポンシブデザインの確認', async () => {
       // モバイルサイズでの表示確認
       await page.setViewport({ width: 375, height: 667 }) // iPhone SE
-      await page.goto('http://localhost:3001', { waitUntil: 'networkidle2' })
+      await page.goto(global.TEST_BASE_URL, { waitUntil: 'networkidle2' })
 
       // ナビゲーションの折りたたみ確認
       const navToggler = await page.$('.navbar-toggler')
@@ -496,7 +498,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
     })
 
     test('XSS攻撃の防御', async () => {
-      await page.goto('http://localhost:3001', { waitUntil: 'networkidle2' })
+      await page.goto(global.TEST_BASE_URL, { waitUntil: 'networkidle2' })
 
       // XSSスクリプトの注入試行（Content Security Policyで防御される）
       const cspHeader = await page.evaluate(() => {
@@ -512,7 +514,7 @@ describe('実際のユースケースに基づいたE2Eテスト', () => {
   describe('パフォーマンステスト', () => {
     test('ダッシュボードの読み込み性能', async () => {
       const startTime = Date.now()
-      await page.goto('http://localhost:3001', { waitUntil: 'networkidle2' })
+      await page.goto(global.TEST_BASE_URL, { waitUntil: 'networkidle2' })
       const loadTime = Date.now() - startTime
 
       expect(loadTime).toBeLessThan(5000) // 5秒以内

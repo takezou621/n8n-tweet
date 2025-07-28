@@ -17,7 +17,9 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
   let dashboardServer
   const performanceMetrics = {}
 
-  const BASE_URL = 'http://localhost:3001'
+  // Use random port to avoid conflicts
+  const PORT = 3001 + Math.floor(Math.random() * 1000)
+  const BASE_URL = `http://localhost:${PORT}`
   const PERFORMANCE_THRESHOLDS = {
     pageLoad: 3000, // 3秒以内
     apiResponse: 1000, // 1秒以内
@@ -26,7 +28,7 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
 
   beforeAll(async () => {
     // ダッシュボードサーバー起動
-    dashboardServer = new DashboardServer({ port: 3001 })
+    dashboardServer = new DashboardServer({ port: PORT })
     await dashboardServer.start()
 
     // Puppeteer起動
