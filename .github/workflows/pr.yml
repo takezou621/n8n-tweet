@@ -133,7 +133,8 @@ jobs:
     - name: Check for sensitive data
       run: |
         # Simple check for common secrets patterns
-        if git diff origin/main...HEAD | grep -iE '(password|secret|key|token).*=.*[\'"][a-zA-Z0-9]'; then
+        SENSITIVE_PATTERNS="(password|secret|key|token).*=.*[\"'][a-zA-Z0-9]"
+        if git diff origin/main...HEAD | grep -iE "$SENSITIVE_PATTERNS"; then
           echo "Warning: Potential sensitive data detected in changes"
           echo "Please review and ensure no secrets are committed"
         fi
