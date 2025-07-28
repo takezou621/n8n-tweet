@@ -13,7 +13,9 @@
       "Bash(sed:*)",
       "Bash(gh pr checks:*)",
       "Bash(gh run view:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(npm audit:*)"
     ],
     "deny": []
   }
