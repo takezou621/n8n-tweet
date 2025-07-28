@@ -35,6 +35,11 @@ RUN rm -rf tests/ .git/ .github/ docs/ *.md
 # =====================================
 FROM node:18-alpine AS production
 
+# Build arguments
+ARG BUILD_DATE
+ARG VCS_REF
+ARG VERSION
+
 # Labels for metadata
 LABEL maintainer="takezou621@example.com" \
       org.label-schema.build-date=$BUILD_DATE \
@@ -57,8 +62,8 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/*
 
 # Create non-root user
-RUN addgroup -g 1000 n8n && \
-    adduser -D -s /bin/sh -u 1000 -G n8n n8n
+RUN addgroup -S n8n || true && \
+    adduser -D -s /bin/sh -S -G n8n n8n
 
 # Set working directory
 WORKDIR /app
