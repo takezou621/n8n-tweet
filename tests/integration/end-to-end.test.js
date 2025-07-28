@@ -500,7 +500,7 @@ describe('End-to-End Integration Tests', () => {
           expect(article).toHaveProperty('link')
           expect(typeof article.title).toBe('string')
           expect(typeof article.link).toBe('string')
-          
+
           // description は optional
           if (article.description) {
             expect(typeof article.description).toBe('string')

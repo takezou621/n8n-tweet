@@ -67,7 +67,7 @@ describe('Real RSS Feed Tweet Generation Integration Test', () => {
           category: 'tech'
         }]
       }
-      
+
       expect(realFeedData.length).toBeGreaterThan(0)
 
       const results = []
