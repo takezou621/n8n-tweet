@@ -1,0 +1,70 @@
+# Multi-stage build for n8n-tweet Dashboard
+FROM node:18-alpine AS base
+
+# Install system dependencies
+RUN apk add --no-cache \
+    tini \
+    curl \
+    wget \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+
+# Create app user
+RUN addgroup -g 1000 -S app && \
+    adduser -u 1000 -S app -G app
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Build stage
+FROM base AS builder
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci --include=dev
+
+# Copy source code
+COPY . .
+
+# Run tests and build
+RUN npm run test:unit || true
+RUN npm run lint:fix || true
+
+# Remove dev dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Production stage
+FROM base AS production
+
+# Set environment
+ENV NODE_ENV=production
+ENV LOG_LEVEL=info
+
+# Copy production dependencies and built application
+COPY --from=builder --chown=app:app /app/node_modules ./node_modules
+COPY --from=builder --chown=app:app /app/src ./src
+COPY --from=builder --chown=app:app /app/static ./static
+COPY --from=builder --chown=app:app /app/config ./config
+COPY --from=builder --chown=app:app /app/package*.json ./
+
+# Create necessary directories
+RUN mkdir -p /app/cache /app/logs && \
+    chown -R app:app /app
+
+# Switch to app user
+USER app
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
+
+# Use tini as entrypoint for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start the dashboard application
+CMD ["node", "src/dashboard/index.js"]

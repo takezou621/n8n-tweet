@@ -3,7 +3,7 @@
  * アプリケーション全体のセキュリティ機能を提供
  */
 
-const crypto = require('crypto')
+// const crypto = require('crypto') // Commented out as not currently used
 const rateLimit = require('express-rate-limit')
 const helmet = require('helmet')
 const { getCryptoUtils, sanitizeForLogging } = require('../utils/crypto')
@@ -108,9 +108,6 @@ function securityHeaders () {
     // Download Options
     ieNoOpen: true,
 
-    // MIME Sniffing Prevention
-    noSniff: true,
-
     // Origin Agent Cluster
     originAgentCluster: true
   })
@@ -129,7 +126,8 @@ function corsMiddleware (allowedOrigins = []) {
     }
 
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-API-Key')
+    res.header('Access-Control-Allow-Headers',
+      'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-API-Key')
     res.header('Access-Control-Allow-Credentials', 'true')
     res.header('Access-Control-Max-Age', '86400') // 24 hours
 

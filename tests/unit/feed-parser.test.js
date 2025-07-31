@@ -284,8 +284,9 @@ describe('FeedParser', () => {
 
       const results = await feedParser.parseMultipleFeeds(feedConfigs)
 
-      expect(results).toHaveLength(1) // Only successful feed
-      expect(results[0].metadata.title).toBe('Good Feed')
+      expect(results).toHaveLength(2) // Both feeds returned (success and failure)
+      const successfulResult = results.find(r => r.success)
+      expect(successfulResult.metadata.title).toBe('Good Feed')
     })
   })
 

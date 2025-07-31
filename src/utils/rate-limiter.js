@@ -248,7 +248,6 @@ class RateLimiter {
    * @param {string} type リクエストタイプ
    */
   recordRequest (key, success = true, type = 'general') {
-    const now = Date.now()
     this.resetExpiredCounters()
 
     // 一般的な使用量を記録

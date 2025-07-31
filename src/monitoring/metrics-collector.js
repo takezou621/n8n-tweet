@@ -323,15 +323,13 @@ class MetricsCollector {
    * ダッシュボード用のメトリクス取得（APIエンドポイント用）
    */
   async getMetrics (timeRange = '1h') {
-    // 時間範囲をミリ秒に変換
-    const timeRangeMap = {
-      '1h': 3600000,
-      '6h': 21600000,
-      '24h': 86400000,
-      '7d': 604800000
-    }
-
-    const timeRangeMs = timeRangeMap[timeRange] || 3600000
+    // 将来の時間ベースフィルタリング用の時間範囲（現在未使用）
+    // const selectedTimeRange = {
+    //   '1h': 3600000,
+    //   '6h': 21600000,
+    //   '24h': 86400000,
+    //   '7d': 604800000
+    // }[timeRange] || 3600000
 
     // システムメトリクスを最新収集
     this.collectSystemMetrics()
