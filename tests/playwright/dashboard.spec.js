@@ -10,27 +10,21 @@ let dashboardServer
 let serverPort
 
 test.describe('n8n-tweet Dashboard E2E Tests', () => {
-  test.beforeAll(async () => {
-    // ダッシュボードサーバー起動
+  test.beforeEach(async () => {
+    // ダッシュボードサーバー起動 - テストごとに異なるポート
+    const port = 3005 + Math.floor(Math.random() * 1000)
     dashboardServer = new DashboardServer({
-      port: 0, // 動的ポート割り当て
-      logLevel: 'error'
+      port,
+      logLevel: 'info'
     })
 
     await dashboardServer.start()
-
-    // サーバーのポート番号を取得
-    if (dashboardServer.server && dashboardServer.server.address()) {
-      serverPort = dashboardServer.server.address().port
-    } else {
-      // フォールバック：設定されたポートを使用
-      serverPort = dashboardServer.config.port || 3000
-    }
+    serverPort = port
 
     console.log(`Dashboard server started on port ${serverPort}`)
   })
 
-  test.afterAll(async () => {
+  test.afterEach(async () => {
     if (dashboardServer) {
       await dashboardServer.stop()
       console.log('Dashboard server stopped')
@@ -45,7 +39,7 @@ test.describe('n8n-tweet Dashboard E2E Tests', () => {
     await expect(page).toHaveTitle(/n8n-tweet.*Dashboard/i)
 
     // メインヘッダーの確認
-    const header = page.locator('h1, .header, .title')
+    const header = page.locator('h1, h2, .header, .title')
     await expect(header.first()).toBeVisible()
 
     // ページが完全に読み込まれるまで待機
@@ -86,9 +80,9 @@ test.describe('n8n-tweet Dashboard E2E Tests', () => {
   test('API エンドポイントのレスポンス確認', async ({ page }) => {
     // APIエンドポイントをテスト
     const endpoints = [
-      '/api/health',
-      '/api/status',
-      '/api/metrics'
+      '/api/v1/health',
+      '/api/v1/metrics',
+      '/api/v1/statistics'
     ]
 
     for (const endpoint of endpoints) {
