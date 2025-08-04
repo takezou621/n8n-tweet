@@ -183,7 +183,8 @@ class TwitterRateLimiter extends BaseRateLimiter {
         day: this.twitterLimits.tweetsPerDay
       },
       lastTweetTime: this.tweetStats.lastTweetTime
-        ? new Date(this.tweetStats.lastTweetTime).toISOString() : null,
+        ? new Date(this.tweetStats.lastTweetTime).toISOString()
+        : null,
       dailyCount: this.tweetStats.dailyTweetCount,
       nextDayReset: new Date(this.tweetStats.lastDayReset).toISOString()
     }

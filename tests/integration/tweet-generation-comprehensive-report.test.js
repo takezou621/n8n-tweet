@@ -145,7 +145,9 @@ describe('Tweet Generation Comprehensive Report', () => {
         minLength: Math.min(...results.map(r => r.tweetLength)),
         optimizedCount: results.filter(r => r.isOptimized).length,
         withUrlCount: results.filter(r => r.hasUrl).length,
-        averageEngagement: Math.round(results.reduce((sum, r) => sum + r.engagementScore, 0) / results.length * 100) / 100
+        averageEngagement: Math.round(
+          results.reduce((sum, r) => sum + r.engagementScore, 0) / results.length * 100
+        ) / 100
       }
 
       console.log('\n=== 統計結果 ===')
@@ -219,7 +221,9 @@ describe('Tweet Generation Comprehensive Report', () => {
         const avgLength = Math.round(stats.lengths.reduce((sum, l) => sum + l, 0) / stats.lengths.length)
         const maxLength = Math.max(...stats.lengths)
         const minLength = Math.min(...stats.lengths)
-        const avgEngagement = Math.round(stats.engagements.reduce((sum, e) => sum + e, 0) / stats.engagements.length * 100) / 100
+        const avgEngagement = stats.engagements && stats.engagements.length > 0 
+          ? (stats.engagements.reduce((sum, e) => sum + e, 0) / stats.engagements.length).toFixed(3)
+          : 'N/A'
 
         console.log(`\n${category.toUpperCase()} カテゴリ:`)
         console.log(`  記事数: ${stats.count}`)
@@ -258,10 +262,6 @@ describe('Tweet Generation Comprehensive Report', () => {
         // URL含有ツイートの文字数チェック
         expect(tweet.content.length).toBeLessThanOrEqual(280)
 
-        if (tweet.content.includes('http')) {
-          // URLが含まれている場合、予約長が適切に機能しているかチェック
-          expect(tweet.content).toContain('http')
-        }
       }
     })
   })
@@ -278,14 +278,23 @@ describe('Tweet Generation Comprehensive Report', () => {
         !/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(item.title)
       )
 
-      if (japaneseArticle) {
-        const japaneseTweet = await generator.generateTweet(japaneseArticle, config.categories)
+      // 日本語記事の処理テスト
+      const japaneseArticles = japaneseArticle ? [japaneseArticle] : []
+
+      // 日本語記事がある場合の処理
+      for (const article of japaneseArticles) {
+        const japaneseTweet = await generator.generateTweet(article, config.categories)
         console.log('\n日本語記事:')
-        console.log(`  タイトル: ${japaneseArticle.title}`)
+        console.log(`  タイトル: ${article.title}`)
         console.log(`  ツイート: ${japaneseTweet.content}`)
         console.log(`  文字数: ${japaneseTweet.content.length}/280`)
 
         expect(japaneseTweet.content.length).toBeLessThanOrEqual(280)
+      }
+
+      // 日本語記事がない場合のメッセージ
+      if (japaneseArticles.length === 0) {
+        console.log('\n日本語記事が見つかりませんでした')
       }
 
       console.log('\n英語記事サンプル:')

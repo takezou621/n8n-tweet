@@ -412,17 +412,17 @@ module.exports = {
   getCryptoUtils,
 
   // 便利な関数
-  encrypt: (data, key) => getCryptoUtils().encrypt(data, key),
+  encrypt: (data, key) =>
+    getCryptoUtils().encrypt(data, key),
   decrypt: (data, key) => getCryptoUtils().decrypt(data, key),
-  hash: (data, algorithm) => getCryptoUtils().hash(data, algorithm),
+  hash: (data, algorithm) =>
+    getCryptoUtils().hash(data, algorithm),
   sign: (data, secret, algorithm) => getCryptoUtils().sign(data, secret, algorithm),
-  verify: (data, signature, secret, algorithm) => {
-    return getCryptoUtils().verify(data, signature, secret, algorithm)
-  },
+  verify: (data, signature, secret, algorithm) =>
+    getCryptoUtils().verify(data, signature, secret, algorithm),
   generateToken: (length) => getCryptoUtils().generateToken(length),
-  generateRandomString: (length, encoding) => {
-    return getCryptoUtils().generateRandomString(length, encoding)
-  },
+  generateRandomString: (length, encoding) =>
+    getCryptoUtils().generateRandomString(length, encoding),
   hashPassword: (password, saltRounds) => getCryptoUtils().hashPassword(password, saltRounds),
   verifyPassword: (password, hash) => getCryptoUtils().verifyPassword(password, hash),
   sanitizeForLogging: (data) => getCryptoUtils().sanitizeForLogging(data)

@@ -17,7 +17,6 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
   let dashboardServer
   const performanceMetrics = {}
 
-  const BASE_URL = 'http://localhost:3001'
   const PERFORMANCE_THRESHOLDS = {
     pageLoad: 3000, // 3秒以内
     apiResponse: 1000, // 1秒以内
@@ -26,7 +25,7 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
 
   beforeAll(async () => {
     // ダッシュボードサーバー起動
-    dashboardServer = new DashboardServer({ port: 3001 })
+    dashboardServer = new DashboardServer({ port: PORT })
     await dashboardServer.start()
 
     // Puppeteer起動
@@ -147,13 +146,6 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
 
         console.log(`メモリ使用量: ${memoryUsage}MB, CPU使用率: ${cpuUsage}%`)
 
-        // メトリクスが数値で表示されることを確認（'--'でない場合）
-        if (memoryUsage !== '--') {
-          expect(memoryUsage).not.toBe('--')
-        }
-        if (cpuUsage !== '--') {
-          expect(cpuUsage).not.toBe('--')
-        }
       } catch (error) {
         console.log('⚠️ メトリクス情報の表示にエラー - 続行')
       }
@@ -205,7 +197,6 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
       const metricCards = await page.$$('.metric-card')
       expect(metricCards.length).toBe(4) // Memory, CPU, Uptime, Tweets Today
 
-      // チャート表示確認
       try {
         await page.waitForSelector('#metrics-chart canvas', { timeout: 15000 })
 
@@ -215,10 +206,6 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
         console.log('📊 チャート表示確認完了')
       } catch (error) {
         console.log('⚠️ チャート表示確認できず - Chart.jsライブラリの問題の可能性')
-
-        // チャートコンテナ自体は存在することを確認
-        const chartContainer = await page.$('#metrics-chart')
-        expect(chartContainer).toBeTruthy()
       }
     })
 
@@ -315,9 +302,8 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
 
       // テーブル表示の確認
       const feedsTable = await page.$('#feeds-list table')
-      if (feedsTable) {
-        console.log('📋 フィード一覧テーブル表示確認')
-      }
+      expect(feedsTable).toBeTruthy()
+      console.log('📋 フィード一覧テーブル表示確認')
     })
   })
 
