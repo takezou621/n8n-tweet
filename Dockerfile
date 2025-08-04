@@ -35,10 +35,10 @@ RUN rm -rf tests/ .git/ .github/ docs/ *.md
 # =====================================
 FROM node:18-alpine AS production
 
-# Build arguments
-ARG BUILD_DATE
-ARG VCS_REF
-ARG VERSION
+# Build arguments for labels
+ARG BUILD_DATE="unknown"
+ARG VCS_REF="unknown"
+ARG VERSION="unknown"
 
 # Labels for metadata
 LABEL maintainer="takezou621@example.com" \
@@ -61,9 +61,9 @@ RUN apk add --no-cache \
     tzdata \
     && rm -rf /var/cache/apk/*
 
-# Create non-root user
-RUN addgroup -S n8n || true && \
-    adduser -D -s /bin/sh -S -G n8n n8n
+# Create non-root user (handle existing GID 1000)
+RUN (addgroup -g 1001 n8n 2>/dev/null || addgroup n8n) && \
+    adduser -D -s /bin/sh -u 1001 -G n8n n8n
 
 # Set working directory
 WORKDIR /app

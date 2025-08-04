@@ -1,0 +1,52 @@
+# Terraform files to ignore
+
+# State files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Variable files with sensitive data
+*.tfvars
+!terraform.tfvars.example
+
+# Terraform CLI configuration files
+.terraformrc
+terraform.rc
+
+# Terraform directory
+.terraform/
+.terraform.lock.hcl
+
+# Log files
+terraform-plugin-proxmox.log
+*.log
+
+# SSH keys
+*.pem
+*.key
+id_rsa*
+
+# Local environment files
+.env
+.env.local
+.env.production
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

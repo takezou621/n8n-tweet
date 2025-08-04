@@ -114,15 +114,6 @@ jobs:
       with:
         category: "/language:javascript"
 
-    - name: ESLint security rules
-      run: |
-        echo "Running ESLint with security rules..."
-        npx eslint src/ \
-          --ext .js \
-          --format=json \
-          --output-file=eslint-security.json \
-          --config .eslintrc-security.js || true
-
     - name: Create security-focused ESLint config
       run: |
         cat > .eslintrc-security.js << 'EOF'
@@ -145,6 +136,15 @@ jobs:
         };
         EOF
 
+    - name: ESLint security rules
+      run: |
+        echo "Running ESLint with security rules..."
+        npx eslint src/ \
+          --ext .js \
+          --format=json \
+          --output-file=eslint-security.json \
+          --config .eslintrc-security.js || true
+
     - name: Upload security analysis results
       uses: actions/upload-artifact@v4
       if: always()
@@ -152,6 +152,7 @@ jobs:
         name: code-security-results
         path: eslint-security.json
         retention-days: 30
+        if-no-files-found: warn
 
   # Container security scan
   container-security:
@@ -159,6 +160,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.scan_type == 'full' || github.event.inputs.scan_type == ''
     timeout-minutes: 15
+
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
     steps:
     - name: Checkout code
@@ -197,14 +203,17 @@ jobs:
         image: "n8n-tweet:security-scan"
         fail-build: false
         severity-cutoff: medium
+        output-format: sarif
+        output-file: grype-results.sarif
 
     - name: Upload Grype scan results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: grype-security-scan
-        path: ${{ steps.grype-scan.outputs.sarif }}
+        path: grype-results.sarif
         retention-days: 30
+        if-no-files-found: warn
 
   # Runtime security checks
   runtime-security:
