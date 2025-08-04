@@ -1,291 +1,321 @@
-/**
- * RateLimiter - 統合レート制限管理クラス
- * TwitterRateLimiterとDoSProtectionLimiterを組み合わせて使用
- * 既存のAPIとの互換性を保ちつつ、責任分離された新しいアーキテクチャを提供
- */
-
-const TwitterRateLimiter = require('./twitter-rate-limiter')
-const DoSProtectionLimiter = require('./dos-protection-limiter')
+const { createLogger } = require('./logger')
 
 class RateLimiter {
   constructor (config = {}) {
-    this.config = {
-      enableLogging: true,
-      logger: console,
+    this.limits = {
+      tweetsPerHour: 50,
+      tweetsPerDay: 1000,
+      requestsPerMinute: 100,
+      cooldownPeriod: 15,
       ...config
     }
 
-    // 各制限管理器を初期化
-    this.twitterLimiter = new TwitterRateLimiter({
-      tweetsPerHour: config.tweetsPerHour || 50,
-      tweetsPerDay: config.tweetsPerDay || 1000,
-      requestsPerMinute: config.requestsPerMinute || 100,
-      cooldownPeriod: config.cooldownPeriod || 15,
-      enableLogging: this.config.enableLogging,
-      logger: this.config.logger,
-      ...config.twitterConfig
-    })
+    this.logger = createLogger('rate-limiter', { enableConsole: false })
 
-    this.dosProtection = new DoSProtectionLimiter({
-      perSecond: config.perSecond || 10,
-      perMinute: config.perMinute || 100,
-      perHour: config.perHour || 1000,
-      burst: config.burst || 50,
-      maxConsecutiveFailures: config.maxConsecutiveFailures || 5,
-      banDuration: config.banDuration || 300000,
-      enableLogging: this.config.enableLogging,
-      logger: this.config.logger,
-      ...config.dosConfig
-    })
-
-    // 後方互換性のためのリクエスト履歴
+    // リクエスト履歴を管理
     this.requestHistory = {
       tweets: [],
-      reads: [],
-      general: []
+      requests: []
     }
 
-    if (this.config.enableLogging) {
-      this.config.logger.info('Unified RateLimiter initialized with separated concerns')
+    // 統計情報
+    this.stats = {
+      tweets: { total: 0, successful: 0, failed: 0, history: [] },
+      requests: { total: 0, successful: 0, failed: 0, history: [] }
+    }
+
+    // バックオフ管理
+    this.backoffCounters = {
+      tweets: 0,
+      requests: 0
+    }
+
+    // 時間窓設定（ミリ秒）
+    this.timeWindows = {
+      minute: config.timeWindowMinute || 60 * 1000,
+      hour: config.timeWindowHour || 60 * 60 * 1000,
+      day: config.timeWindowDay || 24 * 60 * 60 * 1000
     }
   }
 
-  /**
-   * Twitter特化の制限チェック（後方互換性API）
-   * @param {string} type リクエストタイプ ('tweets', 'reads')
-   * @param {string} clientIP クライアントIP（オプション）
-   * @returns {Object} 制限チェック結果
-   */
-  async checkLimit (type = 'general', clientIP = null) {
-    // DoS攻撃防止チェック（IPが提供されている場合）
-    if (clientIP) {
-      const dosCheck = await this.dosProtection.checkIPLimit(clientIP, type)
-      if (!dosCheck.allowed) {
-        return dosCheck
+  async checkLimit (type = 'requests') {
+    try {
+      const now = Date.now()
+      this.cleanOldRecords(type, now)
+
+      const history = this.requestHistory[type] || []
+      let reason = ''
+      let waitTime = 0
+
+      // 分単位チェック
+      if (type === 'requests') {
+        const recentRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.minute
+        )
+        if (recentRequests.length >= this.limits.requestsPerMinute) {
+          reason = 'Request per minute limit exceeded'
+          waitTime = this.timeWindows.minute - (now - recentRequests[0].timestamp)
+          return { allowed: false, reason, waitTime }
+        }
+      }
+
+      // 時間単位チェック
+      if (type === 'tweets') {
+        const recentTweets = history.filter(
+          record => now - record.timestamp < this.timeWindows.hour
+        )
+        if (recentTweets.length >= this.limits.tweetsPerHour) {
+          reason = 'Tweets per hour limit exceeded'
+          waitTime = this.timeWindows.hour - (now - recentTweets[0].timestamp)
+          return { allowed: false, reason, waitTime }
+        }
+
+        // 日単位チェック
+        const dailyTweets = history.filter(
+          record => now - record.timestamp < this.timeWindows.day
+        )
+        if (dailyTweets.length >= this.limits.tweetsPerDay) {
+          reason = 'Tweets per day limit exceeded'
+          waitTime = this.timeWindows.day - (now - dailyTweets[0].timestamp)
+          return { allowed: false, reason, waitTime }
+        }
+      }
+
+      return { allowed: true, reason: 'Within limits', waitTime: 0 }
+    } catch (error) {
+      this.logger.error('Error checking rate limit', { error: error.message, type })
+      return { allowed: true, reason: 'Error occurred', waitTime: 0 } // エラー時は許可
+    }
+  }
+
+  async recordRequest (type = 'requests', success = true) {
+    try {
+      const now = Date.now()
+      const record = {
+        timestamp: now,
+        success
+      }
+
+      // 履歴に追加
+      if (!this.requestHistory[type]) {
+        this.requestHistory[type] = []
+      }
+      this.requestHistory[type].push(record)
+
+      // 統計更新
+      if (!this.stats[type]) {
+        this.stats[type] = { total: 0, successful: 0, failed: 0, history: [] }
+      }
+
+      this.stats[type].total++
+      if (success) {
+        this.stats[type].successful++
+        this.backoffCounters[type] = 0 // 成功時はバックオフリセット
+      } else {
+        this.stats[type].failed++
+        this.backoffCounters[type]++
+      }
+
+      this.stats[type].history.push(record)
+
+      // 履歴サイズ制限
+      if (this.stats[type].history.length > 1000) {
+        this.stats[type].history = this.stats[type].history.slice(-500)
+      }
+
+      this.cleanOldRecords(type, now)
+    } catch (error) {
+      this.logger.error('Error recording request', { error: error.message, type })
+    }
+  }
+
+  async getWaitTime (type = 'requests') {
+    try {
+      const now = Date.now()
+      this.cleanOldRecords(type, now)
+
+      const history = this.requestHistory[type] || []
+
+      if (type === 'requests') {
+        const recentRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.minute
+        )
+        if (recentRequests.length >= this.limits.requestsPerMinute) {
+          const oldestRecent = Math.min(...recentRequests.map(r => r.timestamp))
+          return this.timeWindows.minute - (now - oldestRecent)
+        }
+      }
+
+      if (type === 'tweets') {
+        const recentTweets = history.filter(
+          record => now - record.timestamp < this.timeWindows.hour
+        )
+        if (recentTweets.length >= this.limits.tweetsPerHour) {
+          const oldestRecent = Math.min(...recentTweets.map(r => r.timestamp))
+          return this.timeWindows.hour - (now - oldestRecent)
+        }
+      }
+
+      return 0
+    } catch (error) {
+      this.logger.error('Error calculating wait time', { error: error.message, type })
+      return 0
+    }
+  }
+
+  async resetLimits (type) {
+    try {
+      if (type) {
+        this.requestHistory[type] = []
+        this.stats[type] = { total: 0, successful: 0, failed: 0, history: [] }
+        this.backoffCounters[type] = 0
+      } else {
+        this.resetAllLimits()
+      }
+    } catch (error) {
+      this.logger.error('Error resetting limits', { error: error.message, type })
+    }
+  }
+
+  async resetAllLimits () {
+    try {
+      this.requestHistory = { tweets: [], requests: [] }
+      this.stats = {
+        tweets: { total: 0, successful: 0, failed: 0, history: [] },
+        requests: { total: 0, successful: 0, failed: 0, history: [] }
+      }
+      this.backoffCounters = { tweets: 0, requests: 0 }
+    } catch (error) {
+      this.logger.error('Error resetting all limits', { error: error.message })
+    }
+  }
+
+  getStats () {
+    const now = Date.now()
+
+    const result = {}
+
+    for (const [type, typeStats] of Object.entries(this.stats)) {
+      this.cleanOldRecords(type, now)
+
+      const history = this.requestHistory[type] || []
+
+      let remaining = {}
+      if (type === 'tweets') {
+        const hourlyRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.hour
+        ).length
+        const dailyRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.day
+        ).length
+
+        remaining = {
+          hour: Math.max(0, this.limits.tweetsPerHour - hourlyRequests),
+          day: Math.max(0, this.limits.tweetsPerDay - dailyRequests)
+        }
+      } else if (type === 'requests') {
+        const minuteRequests = history.filter(
+          record => now - record.timestamp < this.timeWindows.minute
+        ).length
+
+        remaining = {
+          minute: Math.max(0, this.limits.requestsPerMinute - minuteRequests)
+        }
+      }
+
+      const successRate = typeStats.total > 0
+        ? Math.round((typeStats.successful / typeStats.total) * 10000) / 100
+        : 0
+
+      result[type] = {
+        total: typeStats.total,
+        successful: typeStats.successful,
+        failed: typeStats.failed,
+        successRate,
+        remaining,
+        resetTime: this.getNextResetTime(type),
+        history: typeStats.history.slice(-10) // 最新10件
       }
     }
 
-    // Twitter特化のチェック
-    switch (type) {
-      case 'tweets':
-        return await this.twitterLimiter.checkTweetLimit()
-      case 'reads':
-        return await this.twitterLimiter.checkReadLimit()
-      default:
-        // 汎用制限チェック（DoS攻撃防止で代用）
-        return { allowed: true }
-    }
+    return result
   }
 
-  /**
-   * リクエストを記録（後方互換性API）
-   * @param {string} type リクエストタイプ
-   * @param {boolean} success 成功フラグ
-   * @param {Object} metadata 追加メタデータ
-   */
-  async recordRequest (type = 'general', success = true, metadata = {}) {
-    // 後方互換性のための履歴更新
-    this.requestHistory[type] = this.requestHistory[type] || []
-    this.requestHistory[type].push({
-      timestamp: Date.now(),
-      success,
-      ...metadata
-    })
+  getBackoffTime (type) {
+    const failureCount = this.backoffCounters[type] || 0
+    if (failureCount === 0) return 0
 
-    // 各制限管理器に記録
-    switch (type) {
-      case 'tweets':
-        await this.twitterLimiter.recordTweet(metadata, success)
-        break
-      case 'reads':
-        await this.twitterLimiter.recordRead(metadata, success)
-        break
-      default:
-        // 汎用リクエストはDoS攻撃防止のみ
-        if (metadata.clientIP) {
-          await this.dosProtection.recordIPRequest(metadata.clientIP, type, success, metadata)
-        }
-        break
-    }
+    // 指数バックオフ: 2^failures * 1000ms, 最大60秒
+    return Math.min(Math.pow(2, failureCount) * 1000, 60000)
   }
 
-  /**
-   * IP特化のリクエスト記録
-   * @param {string} ip IPアドレス
-   * @param {string} type リクエストタイプ
-   * @param {boolean} success 成功フラグ
-   * @param {Object} metadata 追加メタデータ
-   */
-  async recordIPRequest (ip, type = 'general', success = true, metadata = {}) {
-    await this.dosProtection.recordIPRequest(ip, type, success, metadata)
-
-    // Twitter特化のリクエストも同時に記録
-    if (type === 'tweets') {
-      await this.twitterLimiter.recordTweet(metadata, success)
-    } else if (type === 'reads') {
-      await this.twitterLimiter.recordRead(metadata, success)
-    }
-  }
-
-  /**
-   * 統計情報を取得（後方互換性API）
-   * @returns {Object} 統合統計情報
-   */
-  getStats () {
-    const twitterStats = this.twitterLimiter.getTwitterStats()
-    const dosStats = this.dosProtection.getProtectionStats()
-
-    // 後方互換性のための形式変換
-    return {
-      tweets: {
-        total: twitterStats.tweets.total || 0,
-        successful: twitterStats.tweets.successful || 0,
-        failed: twitterStats.tweets.failed || 0,
-        remaining: twitterStats.tweets.remaining,
-        limits: twitterStats.tweets.limits,
-        successRate: twitterStats.tweets.successRate || '0%'
-      },
-      reads: {
-        total: twitterStats.reads.total || 0,
-        successful: twitterStats.reads.successful || 0,
-        failed: twitterStats.reads.failed || 0,
-        remaining: twitterStats.reads.remaining,
-        limits: twitterStats.reads.limits,
-        successRate: twitterStats.reads.successRate || '0%'
-      },
-      protection: dosStats.protection,
-      timestamp: new Date().toISOString()
-    }
-  }
-
-  /**
-   * ヘルスチェック（後方互換性API）
-   * @returns {Object} ヘルス情報
-   */
   getHealth () {
-    const twitterHealth = this.twitterLimiter.getHealth()
-    const dosStats = this.dosProtection.getProtectionStats()
+    const stats = this.getStats()
+    let maxUsage = 0
+
+    // 各タイプの使用率を計算し、最大値を使用
+    for (const [type, typeStats] of Object.entries(stats)) {
+      if (type === 'tweets') {
+        const hourUsage = this.limits.tweetsPerHour - typeStats.remaining.hour
+        const usagePercent = (hourUsage / this.limits.tweetsPerHour) * 100
+        maxUsage = Math.max(maxUsage, usagePercent)
+      } else if (type === 'requests') {
+        const minuteUsage = this.limits.requestsPerMinute - typeStats.remaining.minute
+        const usagePercent = (minuteUsage / this.limits.requestsPerMinute) * 100
+        maxUsage = Math.max(maxUsage, usagePercent)
+      }
+    }
+
+    let status = 'healthy'
+    if (maxUsage >= 90) {
+      status = 'unhealthy'
+    } else if (maxUsage >= 80) {
+      status = 'warning'
+    }
 
     return {
-      status: twitterHealth.status,
-      usage: twitterHealth.usage,
-      limits: twitterHealth.limits,
-      remaining: twitterHealth.remaining,
-      protection: {
-        activeIPs: dosStats.protection.activeIPs,
-        bannedIPs: dosStats.protection.bannedIPs,
-        suspiciousIPs: dosStats.protection.suspiciousIPs,
-        burstTokens: dosStats.protection.burstTokens
-      },
-      timestamp: new Date().toISOString()
+      status,
+      limits: this.limits,
+      usage: {
+        maximum: Math.round(maxUsage * 100) / 100,
+        details: stats
+      }
     }
   }
 
-  /**
-   * Twitter特化の統計情報を取得
-   * @returns {Object} Twitter統計情報
-   */
-  getTwitterStats () {
-    return this.twitterLimiter.getTwitterStats()
+  cleanOldRecords (type, now) {
+    if (!this.requestHistory[type]) return
+
+    // 24時間より古い記録を削除
+    this.requestHistory[type] = this.requestHistory[type].filter(
+      record => now - record.timestamp < this.timeWindows.day
+    )
   }
 
-  /**
-   * DoS攻撃防止の統計情報を取得
-   * @returns {Object} DoS攻撃防止統計情報
-   */
-  getProtectionStats () {
-    return this.dosProtection.getProtectionStats()
-  }
+  getNextResetTime (type) {
+    const now = Date.now()
 
-  /**
-   * IPをBANする
-   * @param {string} ip IPアドレス
-   * @param {string} reason BAN理由
-   * @param {Object} details 詳細情報
-   */
-  async banIP (ip, reason, details = {}) {
-    await this.dosProtection.banIP(ip, reason, details)
-  }
-
-  /**
-   * IPのBAN解除
-   * @param {string} ip IPアドレス
-   */
-  unbanIP (ip) {
-    this.dosProtection.unbanIP(ip)
-  }
-
-  /**
-   * IPがBANされているかチェック
-   * @param {string} ip IPアドレス
-   * @returns {boolean} BAN状態
-   */
-  isBanned (ip) {
-    return this.dosProtection.isBanned(ip)
-  }
-
-  /**
-   * 設定を更新
-   * @param {Object} newConfig 新しい設定
-   */
-  updateConfig (newConfig) {
-    this.config = {
-      ...this.config,
-      ...newConfig
+    if (type === 'tweets') {
+      // 次の時間の開始時刻
+      const nextHour = new Date(now)
+      nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0)
+      return nextHour.toISOString()
+    } else if (type === 'requests') {
+      // 次の分の開始時刻
+      const nextMinute = new Date(now)
+      nextMinute.setMinutes(nextMinute.getMinutes() + 1, 0, 0)
+      return nextMinute.toISOString()
     }
 
-    // 各制限管理器の設定も更新
-    if (newConfig.twitterConfig) {
-      this.twitterLimiter.updateConfig(newConfig.twitterConfig)
-    }
-
-    if (newConfig.dosConfig) {
-      // DoSProtectionLimiter用の設定更新は必要に応じて実装
-    }
-
-    if (this.config.enableLogging) {
-      this.config.logger.info('Unified RateLimiter configuration updated')
-    }
+    return new Date(now).toISOString()
   }
 
-  /**
-   * クリーンアップとリソース解放
-   */
   cleanup () {
-    this.twitterLimiter.cleanup()
-    this.dosProtection.cleanup()
-    this.requestHistory = { tweets: [], reads: [], general: [] }
-
-    if (this.config.enableLogging) {
-      this.config.logger.info('Unified RateLimiter cleanup completed')
+    try {
+      this.resetAllLimits()
+    } catch (error) {
+      this.logger.error('Error during cleanup', { error: error.message })
     }
-  }
-
-  // 後方互換性のための追加メソッド
-
-  /**
-   * 期限切れのエントリをクリーンアップ（後方互換性）
-   */
-  cleanupExpiredEntries () {
-    // 新しいアーキテクチャでは自動的にクリーンアップされる
-    // 明示的なクリーンアップが必要な場合のためのメソッド
-    this.twitterLimiter.cleanup()
-    this.dosProtection.performCleanup()
-  }
-
-  /**
-   * タイムウィンドウ設定（後方互換性）
-   */
-  get timeWindowHour () {
-    return this.twitterLimiter.config.timeWindowHour
-  }
-
-  get timeWindowMinute () {
-    return this.twitterLimiter.config.timeWindowMinute
-  }
-
-  get timeWindowSecond () {
-    return this.twitterLimiter.config.timeWindowSecond
   }
 }
 

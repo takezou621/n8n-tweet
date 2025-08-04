@@ -11,15 +11,17 @@ const fs = require('fs')
 const FeedParser = require('../../src/utils/feed-parser')
 const ContentFilter = require('../../src/filters/content-filter')
 const TweetGenerator = require('../../src/generators/tweet-generator')
+// Core modules for quality analysis
 // const TwitterClient = require('../../src/integrations/twitter-client')
 // const RateLimiter = require('../../src/utils/rate-limiter')
 // const TweetHistory = require('../../src/storage/tweet-history')
 // const HealthChecker = require('../../src/monitoring/health-checker')
-const MetricsCollector = require('../../src/monitoring/metrics-collector')
+// const MetricsCollector = require('../../src/monitoring/metrics-collector')
 const { createLogger } = require('../../src/utils/logger')
 // const { createErrorHandler } = require('../../src/utils/error-handler')
 
 describe('Quality Metrics Tests', () => {
+  // let metricsCollector
   let logger
   let qualityReport
 
@@ -29,13 +31,11 @@ describe('Quality Metrics Tests', () => {
       enableConsole: false
     })
 
-    // Initialize metrics collector for performance tracking
-    // eslint-disable-next-line no-new
-    new MetricsCollector({
-      logger,
-      enablePerformanceMonitoring: true,
-      enableBusinessMetrics: true
-    })
+    // metricsCollector = new MetricsCollector({
+    //   logger,
+    //   enablePerformanceMonitoring: true,
+    //   enableBusinessMetrics: true
+    // })
 
     qualityReport = {
       codeQuality: {},
@@ -53,16 +53,13 @@ describe('Quality Metrics Tests', () => {
     const reportPath = path.join(__dirname, '../data/quality-report.json')
     fs.writeFileSync(reportPath, JSON.stringify(qualityReport, null, 2))
 
-    // eslint-disable-next-line no-console
-    console.log('\n📊 Quality Metrics Summary:')
-    // eslint-disable-next-line no-console
-    console.log('Code Quality Score:', qualityReport.codeQuality.overallScore || 'N/A')
-    // eslint-disable-next-line no-console
-    console.log('Test Coverage:', qualityReport.testCoverage.overall || 'N/A')
-    // eslint-disable-next-line no-console
-    console.log('Performance Score:', qualityReport.performance.overallScore || 'N/A')
-    // eslint-disable-next-line no-console
-    console.log('Maintainability:', qualityReport.maintainability.score || 'N/A')
+    // Quality metrics summary logging
+    logger.info('Quality Metrics Summary:', {
+      codeQualityScore: qualityReport.codeQuality.overallScore || 'N/A',
+      testCoverage: qualityReport.testCoverage.overall || 'N/A',
+      performanceScore: qualityReport.performance.overallScore || 'N/A',
+      maintainability: qualityReport.maintainability.score || 'N/A'
+    })
   })
 
   describe('Code Quality Metrics', () => {
@@ -105,12 +102,11 @@ describe('Quality Metrics Tests', () => {
       }
 
       expect(avgComplexity).toBeLessThanOrEqual(15) // 許容範囲
-      complexityResults.forEach(result => {
-        if (result.exists) {
-          // eslint-disable-next-line jest/no-conditional-expect
-          expect(result.complexity).toBeLessThanOrEqual(20) // 最大限界
-        }
+      const existingResults = complexityResults.filter(result => result.exists)
+      existingResults.forEach(result => {
+        expect(result.complexity).toBeLessThanOrEqual(20) // 最大限界
       })
+      expect(existingResults.length).toBeGreaterThan(0) // At least one file should exist
     })
 
     test('コード行数とファイル構造分析', () => {
@@ -157,17 +153,15 @@ describe('Quality Metrics Tests', () => {
 
       qualityReport.codeQuality.functionAnalysis = functionAnalysis
 
-      functionAnalysis.forEach(fileAnalysis => {
-        if (fileAnalysis.exists) {
-          // eslint-disable-next-line jest/no-conditional-expect
-          expect(fileAnalysis.avgFunctionLength).toBeLessThanOrEqual(50) // 平均50行以下
+      const existingAnalysis = functionAnalysis.filter(analysis => analysis.exists)
+      existingAnalysis.forEach(fileAnalysis => {
+        expect(fileAnalysis.avgFunctionLength).toBeLessThanOrEqual(50) // 平均50行以下
 
-          fileAnalysis.functions.forEach(func => {
-            // eslint-disable-next-line jest/no-conditional-expect
-            expect(func.lines).toBeLessThanOrEqual(100) // 各関数100行以下
-          })
-        }
+        fileAnalysis.functions.forEach(func => {
+          expect(func.lines).toBeLessThanOrEqual(100) // 各関数100行以下
+        })
       })
+      expect(existingAnalysis.length).toBeGreaterThan(0) // At least one file should exist
     })
   })
 
@@ -188,8 +182,7 @@ describe('Quality Metrics Tests', () => {
           const coverage = JSON.parse(fs.readFileSync(coveragePath, 'utf8'))
           coverageData = coverage.total || coverageData
         } catch (error) {
-          // eslint-disable-next-line no-console
-          console.warn('Could not read coverage data:', error.message)
+          logger.warn('Could not read coverage data:', error.message)
         }
       }
 
@@ -250,14 +243,14 @@ describe('Quality Metrics Tests', () => {
       const startTime = Date.now()
 
       // 主要コンポーネントの初期化時間を測定
-      // eslint-disable-next-line no-new
-      new FeedParser({ enableCache: false })
-      // eslint-disable-next-line no-new
-      new ContentFilter({
+      // eslint-disable-next-line no-unused-vars
+      const feedParser = new FeedParser({ enableCache: false })
+      // eslint-disable-next-line no-unused-vars
+      const contentFilter = new ContentFilter({
         keywordsFile: path.join(__dirname, '../../config/keywords.json')
       })
-      // eslint-disable-next-line no-new
-      new TweetGenerator({
+      // eslint-disable-next-line no-unused-vars
+      const tweetGenerator = new TweetGenerator({
         templatesFile: path.join(__dirname, '../../config/tweet-templates.json')
       })
 
@@ -276,8 +269,8 @@ describe('Quality Metrics Tests', () => {
       const initialMemory = process.memoryUsage()
 
       // 通常の処理を実行
-      // eslint-disable-next-line no-new
-      new FeedParser({ enableCache: false })
+      // eslint-disable-next-line no-unused-vars
+      const feedParser = new FeedParser({ enableCache: false })
       const mockArticles = Array.from({ length: 100 }, (_, i) => ({
         title: `Test Article ${i}`,
         content: 'Test content '.repeat(100),

@@ -1,963 +1,488 @@
-/**
- * ツイート履歴管理
- * ツイートの保存、重複チェック、分析機能を提供
- *
- * Features:
- * - ツイート履歴の永続化
- * - 重複ツイートの検出
- * - 統計分析機能
- * - データのクリーンアップ
- */
-
-const winston = require('winston')
 const fs = require('fs').promises
 const path = require('path')
 const crypto = require('crypto')
-const { getCryptoUtils } = require('../utils/crypto')
+const { createLogger } = require('../utils/logger')
 
 class TweetHistory {
   constructor (config = {}) {
     this.config = {
-      // デフォルト設定
-      storageFile: './cache/tweet-history.json',
-      maxEntries: 10000,
-      retentionDays: 90,
-      enableCompression: true,
-      enableEncryption: false, // 暗号化機能
-      autoSave: true,
-      saveInterval: 300000, // 5分
-      logLevel: 'info',
+      storagePath: path.join(process.cwd(), 'data', 'tweets'),
+      maxHistorySize: 1000,
+      enablePersistence: true,
+      autoSave: false,
+      autoSaveInterval: 5 * 60 * 1000, // 5分
       ...config
     }
 
-    this.initializeLogger()
-    this.tweetHistory = []
-    this.hashIndex = new Map() // 高速重複検索用
-    this.isLoaded = false
-    this.saveIntervalId = null
-    this.isDirty = false
-
-    // 暗号化ユーティリティの初期化
-    if (this.config.enableEncryption) {
-      this.cryptoUtils = getCryptoUtils({ logger: this.logger })
-    }
+    this.logger = createLogger('tweet-history', { enableConsole: false })
+    this.tweets = []
+    this.initialized = false
+    this.autoSaveTimer = null
   }
 
-  /**
-   * ロガーを初期化
-   */
-  initializeLogger () {
-    this.logger = winston.createLogger({
-      level: this.config.logLevel,
-      format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.errors({ stack: true }),
-        winston.format.json()
-      ),
-      transports: [
-        new winston.transports.Console({
-          silent: process.env.NODE_ENV === 'test',
-          format: winston.format.combine(
-            winston.format.colorize(),
-            winston.format.simple()
-          )
-        })
-      ]
-    })
-  }
-
-  /**
-   * ツイートのハッシュを生成
-   */
-  generateTweetHash (text) {
-    // ツイートテキストを正規化してハッシュ化
-    const normalized = text
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/[^\w\s]/g, '') // 特殊文字を除去
-
-    return crypto.createHash('sha256').update(normalized, 'utf8').digest('hex')
-  }
-
-  /**
-   * 履歴データを読み込み
-   */
-  async loadHistory () {
+  async initialize () {
     try {
-      this.logger.info('Loading tweet history', {
-        storageFile: this.config.storageFile
-      })
+      if (this.initialized) return
 
-      // ディレクトリを作成
-      const dir = path.dirname(this.config.storageFile)
-      await fs.mkdir(dir, { recursive: true })
+      // ストレージディレクトリを作成
+      await fs.mkdir(this.config.storagePath, { recursive: true })
 
-      // ファイルが存在するかチェック
-      try {
-        await fs.access(this.config.storageFile)
-      } catch (error) {
-        // ファイルが存在しない場合は空の履歴で開始
-        this.logger.info('Tweet history file not found, starting with empty history')
-        this.isLoaded = true
-        return
+      // 既存のデータを読み込み
+      if (this.config.enablePersistence) {
+        await this.load()
       }
-
-      // ファイルを読み込み
-      const fileContent = await fs.readFile(this.config.storageFile, 'utf8')
-
-      let historyData
-      if (this.config.enableEncryption && this.cryptoUtils) {
-        try {
-          // 暗号化ファイルの復号化
-          historyData = this.cryptoUtils.decrypt(fileContent)
-          this.logger.debug('Tweet history file decrypted successfully')
-        } catch (decryptError) {
-          // 復号化に失敗した場合、平文として読み込みを試行
-          this.logger.warn('Failed to decrypt tweet history, trying as plain text', {
-            error: decryptError.message
-          })
-          historyData = JSON.parse(fileContent)
-        }
-      } else {
-        historyData = JSON.parse(fileContent)
-      }
-
-      // バージョン互換性チェック
-      if (historyData.version !== '1.0') {
-        this.logger.warn('Tweet history file version mismatch, may need migration')
-      }
-
-      this.tweetHistory = historyData.tweets || []
-
-      // ハッシュインデックスを再構築
-      this.rebuildHashIndex()
-
-      // 古いエントリを削除
-      await this.cleanupOldEntries()
-
-      this.isLoaded = true
-
-      this.logger.info('Tweet history loaded successfully', {
-        totalTweets: this.tweetHistory.length,
-        uniqueHashes: this.hashIndex.size
-      })
 
       // 自動保存を開始
       if (this.config.autoSave) {
         this.startAutoSave()
       }
-    } catch (error) {
-      this.logger.error('Failed to load tweet history', {
-        error: error.message,
-        storageFile: this.config.storageFile
-      })
 
-      // エラーの場合は空の履歴で開始
-      this.tweetHistory = []
-      this.hashIndex.clear()
-      this.isLoaded = true
+      this.initialized = true
+      this.logger.info('TweetHistory initialized', {
+        storagePath: this.config.storagePath,
+        enablePersistence: this.config.enablePersistence,
+        autoSave: this.config.autoSave
+      })
+    } catch (error) {
+      this.logger.error('Failed to initialize TweetHistory', { error: error.message })
+      throw error
     }
   }
 
-  /**
-   * ハッシュインデックスを再構築
-   */
-  rebuildHashIndex () {
-    this.hashIndex.clear()
-
-    this.tweetHistory.forEach((tweet, index) => {
-      if (tweet.hash) {
-        this.hashIndex.set(tweet.hash, index)
-      } else {
-        // 古いエントリにハッシュがない場合は生成
-        tweet.hash = this.generateTweetHash(tweet.text)
-        this.hashIndex.set(tweet.hash, index)
-      }
-    })
-
-    this.logger.debug('Hash index rebuilt', {
-      totalEntries: this.hashIndex.size
-    })
-  }
-
-  /**
-   * ツイートを履歴に追加
-   */
   async addTweet (tweetData) {
     try {
-      if (!this.isLoaded) {
-        await this.loadHistory()
-      }
-
-      // 必須フィールドチェック
       if (!tweetData.text) {
         throw new Error('Tweet text is required')
       }
 
-      // ハッシュ生成
-      const hash = this.generateTweetHash(tweetData.text)
-
-      // 重複チェック
-      if (this.hashIndex.has(hash)) {
-        const existingIndex = this.hashIndex.get(hash)
-        const existingTweet = this.tweetHistory[existingIndex]
-
-        this.logger.warn('Duplicate tweet detected', {
-          text: tweetData.text.substring(0, 50) + '...',
-          existingDate: existingTweet.timestamp
-        })
-
-        return {
-          success: false,
-          duplicate: true,
-          existingTweet
-        }
-      }
-
-      // 新しいツイートエントリを作成
-      const tweetEntry = {
-        id: tweetData.id || `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      const tweet = {
+        id: tweetData.id || this.generateId(),
         text: tweetData.text,
-        hash,
-        timestamp: tweetData.timestamp || new Date().toISOString(),
-        source: tweetData.source || 'ai-tweet-bot',
-        metadata: {
-          posted: tweetData.posted || false,
-          platform: tweetData.platform || 'twitter',
-          category: tweetData.category || 'general',
-          tags: tweetData.tags || [],
-          length: tweetData.text.length,
-          ...tweetData.metadata
-        }
+        status: tweetData.status || 'pending',
+        createdAt: tweetData.createdAt || new Date().toISOString(),
+        contentHash: this.generateContentHash(tweetData.text),
+        ...tweetData
       }
 
-      // 履歴に追加
-      this.tweetHistory.push(tweetEntry)
-      this.hashIndex.set(hash, this.tweetHistory.length - 1)
+      // 履歴の先頭に追加（最新が先頭）
+      this.tweets.unshift(tweet)
 
-      // サイズ制限チェック
-      await this.enforceMaxEntries()
+      // サイズ制限
+      if (this.tweets.length > this.config.maxHistorySize) {
+        this.tweets = this.tweets.slice(0, this.config.maxHistorySize)
+      }
 
-      this.isDirty = true
-
-      this.logger.info('Tweet added to history', {
-        id: tweetEntry.id,
-        textLength: tweetEntry.text.length,
-        category: tweetEntry.metadata.category
+      this.logger.debug('Tweet added to history', {
+        id: tweet.id,
+        status: tweet.status,
+        textLength: tweet.text.length
       })
 
-      return {
-        success: true,
-        tweetEntry
-      }
+      return tweet
     } catch (error) {
-      this.logger.error('Failed to add tweet to history', {
-        error: error.message
-      })
+      this.logger.error('Failed to add tweet', { error: error.message })
       throw error
     }
   }
 
-  /**
-   * ツイートを保存 (integration test用エイリアス)
-   */
-  async saveTweet (tweetData) {
-    // URLをメタデータに追加
-    const enhancedTweetData = {
-      ...tweetData,
-      text: tweetData.tweetText || tweetData.text || 'Generated tweet',
-      metadata: {
-        ...tweetData.metadata,
-        sourceUrl: tweetData.url,
-        posted: true,
-        platform: 'twitter'
-      }
-    }
-
-    return this.addTweet(enhancedTweetData)
-  }
-
-  /**
-   * 重複ツイートをチェック (async wrapper)
-   */
-  async isDuplicate (url) {
-    if (!this.isLoaded) {
-      await this.loadHistory()
-    }
-
-    // URLベースの重複チェック（integration testで期待されている形式）
-    const existingTweet = this.tweetHistory.find(tweet =>
-      tweet.metadata && tweet.metadata.sourceUrl === url
-    )
-
-    return !!existingTweet
-  }
-
-  /**
-   * 重複ツイートをチェック
-   */
-  checkDuplicate (text) {
-    if (!this.isLoaded) {
-      throw new Error('Tweet history not loaded. Call loadHistory() first.')
-    }
-
-    const hash = this.generateTweetHash(text)
-
-    if (this.hashIndex.has(hash)) {
-      const index = this.hashIndex.get(hash)
-      return {
-        isDuplicate: true,
-        existingTweet: this.tweetHistory[index]
-      }
-    }
-
-    return {
-      isDuplicate: false
-    }
-  }
-
-  /**
-   * 履歴を保存
-   */
-  async saveHistory () {
+  async isDuplicate (urlOrText) {
     try {
-      if (!this.isDirty && this.isLoaded) {
-        this.logger.debug('Tweet history is up to date, skipping save')
-        return
-      }
+      // URLかテキストかを判定
+      const isUrl = urlOrText.startsWith('http://') || urlOrText.startsWith('https://')
 
-      this.logger.info('Saving tweet history', {
-        totalTweets: this.tweetHistory.length
-      })
-
-      const historyData = {
-        version: '1.0',
-        savedAt: new Date().toISOString(),
-        encrypted: this.config.enableEncryption,
-        config: {
-          maxEntries: this.config.maxEntries,
-          retentionDays: this.config.retentionDays,
-          enableEncryption: this.config.enableEncryption
-        },
-        stats: {
-          totalTweets: this.tweetHistory.length,
-          uniqueHashes: this.hashIndex.size
-        },
-        tweets: this.tweetHistory
-      }
-
-      // ディレクトリを作成
-      const dir = path.dirname(this.config.storageFile)
-      await fs.mkdir(dir, { recursive: true })
-
-      let fileContent
-      if (this.config.enableEncryption && this.cryptoUtils) {
-        // 暗号化して保存
-        fileContent = this.cryptoUtils.encrypt(historyData)
-        this.logger.debug('Tweet history encrypted for storage')
+      if (isUrl) {
+        // URL重複チェック
+        return this.tweets.some(tweet => tweet.url === urlOrText)
       } else {
-        // 平文として保存
-        fileContent = JSON.stringify(historyData, null, this.config.enableCompression ? 0 : 2)
-      }
-
-      await fs.writeFile(this.config.storageFile, fileContent, 'utf8')
-
-      // ファイル権限を制限（Unix系のみ）
-      if (process.platform !== 'win32') {
-        await fs.chmod(this.config.storageFile, 0o600) // 所有者のみ読み書き可能
-      }
-
-      this.isDirty = false
-
-      this.logger.info('Tweet history saved successfully', {
-        fileSize: fileContent.length,
-        encrypted: this.config.enableEncryption,
-        storageFile: this.config.storageFile
-      })
-    } catch (error) {
-      this.logger.error('Failed to save tweet history', {
-        error: error.message
-      })
-      throw error
-    }
-  }
-
-  /**
-   * 最大エントリ数制限を適用
-   */
-  async enforceMaxEntries () {
-    if (this.tweetHistory.length <= this.config.maxEntries) {
-      return
-    }
-
-    const excessCount = this.tweetHistory.length - this.config.maxEntries
-
-    this.logger.info('Enforcing max entries limit', {
-      currentCount: this.tweetHistory.length,
-      maxEntries: this.config.maxEntries,
-      toRemove: excessCount
-    })
-
-    // 古いエントリから削除（FIFOベース）
-    const removedTweets = this.tweetHistory.splice(0, excessCount)
-
-    // ハッシュインデックスを再構築
-    this.rebuildHashIndex()
-
-    this.isDirty = true
-
-    this.logger.info('Old tweets removed to enforce limit', {
-      removedCount: removedTweets.length,
-      remainingCount: this.tweetHistory.length
-    })
-  }
-
-  /**
-   * 古いエントリをクリーンアップ
-   */
-  async cleanupOldEntries () {
-    const cutoffDate = new Date()
-    cutoffDate.setDate(cutoffDate.getDate() - this.config.retentionDays)
-
-    const initialCount = this.tweetHistory.length
-
-    this.tweetHistory = this.tweetHistory.filter(tweet => {
-      return new Date(tweet.timestamp) > cutoffDate
-    })
-
-    const removedCount = initialCount - this.tweetHistory.length
-
-    if (removedCount > 0) {
-      // ハッシュインデックスを再構築
-      this.rebuildHashIndex()
-      this.isDirty = true
-
-      this.logger.info('Old tweets cleaned up', {
-        removedCount,
-        retentionDays: this.config.retentionDays,
-        remainingCount: this.tweetHistory.length
-      })
-    }
-  }
-
-  /**
-   * 統計情報を取得
-   */
-  getStats (timeRange = 86400000) { // デフォルト24時間
-    if (!this.isLoaded) {
-      throw new Error('Tweet history not loaded. Call loadHistory() first.')
-    }
-
-    const cutoffTime = new Date(Date.now() - timeRange)
-    const recentTweets = this.tweetHistory.filter(
-      tweet => new Date(tweet.timestamp) > cutoffTime
-    )
-
-    // カテゴリ別統計
-    const categoryStats = {}
-    recentTweets.forEach(tweet => {
-      const category = tweet.metadata.category || 'unknown'
-      categoryStats[category] = (categoryStats[category] || 0) + 1
-    })
-
-    // 投稿済み/未投稿統計
-    const postedTweets = recentTweets.filter(tweet => tweet.metadata.posted)
-    const unpostedTweets = recentTweets.filter(tweet => !tweet.metadata.posted)
-
-    return {
-      timeRange: timeRange / 1000, // 秒単位
-      total: {
-        all: this.tweetHistory.length,
-        recent: recentTweets.length
-      },
-      posting: {
-        posted: postedTweets.length,
-        unposted: unpostedTweets.length,
-        postingRate: recentTweets.length > 0
-          ? (postedTweets.length / recentTweets.length * 100).toFixed(2) + '%'
-          : '0%'
-      },
-      categories: categoryStats,
-      duplicates: {
-        totalHashes: this.hashIndex.size,
-        uniqueRatio: this.tweetHistory.length > 0
-          ? (this.hashIndex.size / this.tweetHistory.length * 100).toFixed(2) + '%'
-          : '100%'
-      },
-      timestamps: {
-        oldest: this.tweetHistory.length > 0 ? this.tweetHistory[0].timestamp : null,
-        newest: this.tweetHistory.length > 0
-          ? this.tweetHistory[this.tweetHistory.length - 1].timestamp
-          : null
-      }
-    }
-  }
-
-  /**
-   * ツイート履歴を検索
-   */
-  searchTweets (query = {}) {
-    if (!this.isLoaded) {
-      throw new Error('Tweet history not loaded. Call loadHistory() first.')
-    }
-
-    let results = [...this.tweetHistory]
-
-    // テキスト検索
-    if (query.text) {
-      const searchText = query.text.toLowerCase()
-      results = results.filter(tweet =>
-        tweet.text.toLowerCase().includes(searchText)
-      )
-    }
-
-    // カテゴリフィルタ
-    if (query.category) {
-      results = results.filter(tweet =>
-        tweet.metadata.category === query.category
-      )
-    }
-
-    // 投稿状態フィルタ
-    if (query.posted !== undefined) {
-      results = results.filter(tweet =>
-        tweet.metadata.posted === query.posted
-      )
-    }
-
-    // 日付範囲フィルタ
-    if (query.startDate) {
-      const startDate = new Date(query.startDate)
-      results = results.filter(tweet =>
-        new Date(tweet.timestamp) >= startDate
-      )
-    }
-
-    if (query.endDate) {
-      const endDate = new Date(query.endDate)
-      results = results.filter(tweet =>
-        new Date(tweet.timestamp) <= endDate
-      )
-    }
-
-    // ソート
-    if (query.sortBy) {
-      const sortField = query.sortBy
-      const sortOrder = query.sortOrder || 'desc'
-
-      results.sort((a, b) => {
-        let valueA, valueB
-
-        if (sortField === 'timestamp') {
-          valueA = new Date(a.timestamp)
-          valueB = new Date(b.timestamp)
-        } else if (sortField === 'length') {
-          valueA = a.text.length
-          valueB = b.text.length
-        } else {
-          valueA = a[sortField] || ''
-          valueB = b[sortField] || ''
-        }
-
-        if (sortOrder === 'asc') {
-          return valueA > valueB ? 1 : -1
-        } else {
-          return valueA < valueB ? 1 : -1
-        }
-      })
-    }
-
-    // 制限
-    if (query.limit && query.limit > 0) {
-      results = results.slice(0, query.limit)
-    }
-
-    return {
-      total: results.length,
-      results
-    }
-  }
-
-  /**
-   * 自動保存を開始
-   */
-  startAutoSave () {
-    if (this.saveIntervalId) {
-      return
-    }
-
-    this.logger.info('Starting auto-save for tweet history', {
-      interval: this.config.saveInterval
-    })
-
-    this.saveIntervalId = setInterval(async () => {
-      try {
-        if (this.isDirty) {
-          await this.saveHistory()
-        }
-      } catch (error) {
-        this.logger.error('Auto-save failed', { error: error.message })
-      }
-    }, this.config.saveInterval)
-  }
-
-  /**
-   * 自動保存を停止
-   */
-  stopAutoSave () {
-    if (this.saveIntervalId) {
-      clearInterval(this.saveIntervalId)
-      this.saveIntervalId = null
-
-      this.logger.info('Auto-save stopped for tweet history')
-    }
-  }
-
-  /**
-   * ヘルスチェック
-   */
-  async healthCheck () {
-    try {
-      const stats = this.getStats()
-
-      return {
-        status: 'healthy',
-        loaded: this.isLoaded,
-        stats: {
-          totalTweets: stats.total.all,
-          recentTweets: stats.total.recent,
-          duplicateRatio: stats.duplicates.uniqueRatio
-        },
-        config: {
-          maxEntries: this.config.maxEntries,
-          retentionDays: this.config.retentionDays,
-          autoSave: this.config.autoSave,
-          enableEncryption: this.config.enableEncryption
-        },
-        timestamp: new Date().toISOString()
+        // テキスト重複チェック
+        const normalizedText = urlOrText.trim().toLowerCase()
+        return this.tweets.some(tweet =>
+          tweet.text && tweet.text.trim().toLowerCase() === normalizedText
+        )
       }
     } catch (error) {
-      return {
-        status: 'unhealthy',
-        error: error.message,
-        loaded: this.isLoaded,
-        timestamp: new Date().toISOString()
-      }
-    }
-  }
-
-  /**
-   * 暗号化を有効/無効にする
-   */
-  async setEncryption (enabled) {
-    try {
-      if (enabled && !this.cryptoUtils) {
-        this.cryptoUtils = getCryptoUtils({ logger: this.logger })
-      }
-
-      const previousSetting = this.config.enableEncryption
-      this.config.enableEncryption = enabled
-
-      if (previousSetting !== enabled) {
-        this.isDirty = true
-        await this.saveHistory() // 新しい設定で保存
-
-        this.logger.info('Tweet history encryption setting changed', {
-          previousSetting,
-          newSetting: enabled
-        })
-      }
-    } catch (error) {
-      this.logger.error('Failed to change encryption setting', {
-        error: error.message
-      })
-      throw error
-    }
-  }
-
-  /**
-   * 既存ファイルの暗号化状態を確認
-   */
-  async checkEncryptionStatus () {
-    try {
-      if (!await this.fileExists()) {
-        return { exists: false }
-      }
-
-      const fileContent = await fs.readFile(this.config.storageFile, 'utf8')
-
-      // JSON として解析可能かチェック
-      try {
-        const data = JSON.parse(fileContent)
-        return {
-          exists: true,
-          encrypted: false,
-          hasEncryptionFlag: data.encrypted !== undefined,
-          encryptionFlag: data.encrypted
-        }
-      } catch (parseError) {
-        // JSON として解析できない場合、暗号化されている可能性が高い
-        return {
-          exists: true,
-          encrypted: true,
-          detectedByParsing: true
-        }
-      }
-    } catch (error) {
-      this.logger.error('Failed to check encryption status', {
-        error: error.message
-      })
-      return { exists: false, error: error.message }
-    }
-  }
-
-  /**
-   * ファイルの存在確認
-   */
-  async fileExists () {
-    try {
-      await fs.access(this.config.storageFile)
-      return true
-    } catch {
+      this.logger.error('Error checking duplicate', { error: error.message })
       return false
     }
   }
 
-  /**
-   * データの整合性チェック
-   */
-  async verifyDataIntegrity () {
+  async isDuplicateHash (hash) {
     try {
-      if (!this.isLoaded) {
-        await this.loadHistory()
+      return this.tweets.some(tweet => tweet.contentHash === hash)
+    } catch (error) {
+      this.logger.error('Error checking duplicate hash', { error: error.message })
+      return false
+    }
+  }
+
+  generateContentHash (text) {
+    return crypto.createHash('sha256').update(text.trim().toLowerCase()).digest('hex')
+  }
+
+  generateId () {
+    return Date.now().toString() + '-' + Math.random().toString(36).substr(2, 9)
+  }
+
+  getHistory (filters = {}) {
+    try {
+      let results = [...this.tweets]
+
+      // ステータスフィルタ
+      if (filters.status) {
+        results = results.filter(tweet => tweet.status === filters.status)
       }
 
-      const issues = []
+      // 日付範囲フィルタ
+      if (filters.startDate || filters.endDate) {
+        results = results.filter(tweet => {
+          const tweetDate = new Date(tweet.createdAt)
 
-      // 基本的な整合性チェック
-      if (this.tweetHistory.length !== this.hashIndex.size) {
-        issues.push({
-          type: 'hash_index_mismatch',
-          message: 'Tweet count and hash index size mismatch',
-          tweetCount: this.tweetHistory.length,
-          hashCount: this.hashIndex.size
+          if (filters.startDate && tweetDate < new Date(filters.startDate)) {
+            return false
+          }
+
+          if (filters.endDate && tweetDate > new Date(filters.endDate)) {
+            return false
+          }
+
+          return true
         })
       }
 
-      // 重複ハッシュチェック
-      const hashCounts = {}
-      this.tweetHistory.forEach((tweet, index) => {
-        if (!tweet.hash) {
-          issues.push({
-            type: 'missing_hash',
-            message: `Tweet at index ${index} missing hash`,
-            tweetId: tweet.id
-          })
-        } else {
-          hashCounts[tweet.hash] = (hashCounts[tweet.hash] || 0) + 1
-        }
-      })
-
-      Object.entries(hashCounts).forEach(([hash, count]) => {
-        if (count > 1) {
-          issues.push({
-            type: 'duplicate_hash',
-            message: `Hash ${hash} appears ${count} times`,
-            hash,
-            count
-          })
-        }
-      })
-
-      return {
-        valid: issues.length === 0,
-        issues,
-        stats: {
-          totalTweets: this.tweetHistory.length,
-          uniqueHashes: Object.keys(hashCounts).length,
-          hashIndexSize: this.hashIndex.size
-        }
+      // キーワード検索
+      if (filters.keyword) {
+        const keyword = filters.keyword.toLowerCase()
+        results = results.filter(tweet =>
+          tweet.text.toLowerCase().includes(keyword)
+        )
       }
+
+      // 制限数
+      if (filters.limit) {
+        results = results.slice(0, filters.limit)
+      }
+
+      return results
     } catch (error) {
-      return {
-        valid: false,
-        error: error.message
-      }
+      this.logger.error('Error getting history', { error: error.message })
+      return []
     }
   }
 
-  /**
-   * セキュアなデータ削除
-   */
-  async secureDelete () {
+  searchByKeyword (keyword) {
     try {
-      if (await this.fileExists()) {
-        // ファイルを複数回上書きしてからデリート
-        const fileSize = (await fs.stat(this.config.storageFile)).size
-        const randomData = Buffer.alloc(fileSize)
+      const searchTerm = keyword.toLowerCase()
+      return this.tweets.filter(tweet =>
+        tweet.text.toLowerCase().includes(searchTerm)
+      )
+    } catch (error) {
+      this.logger.error('Error searching by keyword', { error: error.message, keyword })
+      return []
+    }
+  }
 
-        // 3回ランダムデータで上書き
-        for (let i = 0; i < 3; i++) {
-          crypto.randomFillSync(randomData)
-          await fs.writeFile(this.config.storageFile, randomData)
+  getStats (filters = {}) {
+    try {
+      const tweets = this.getHistory(filters)
+
+      const total = tweets.length
+      const successful = tweets.filter(t => t.status === 'success').length
+      const failed = tweets.filter(t => t.status === 'failed').length
+      const pending = tweets.filter(t => t.status === 'pending').length
+
+      return {
+        total,
+        successful,
+        failed,
+        pending,
+        successRate: total > 0 ? Math.round((successful / total) * 100) : 0
+      }
+    } catch (error) {
+      this.logger.error('Error calculating stats', { error: error.message })
+      return { total: 0, successful: 0, failed: 0, pending: 0, successRate: 0 }
+    }
+  }
+
+  getHourlyStats () {
+    try {
+      const hourlyData = new Map()
+
+      this.tweets.forEach(tweet => {
+        const hour = new Date(tweet.createdAt).getHours()
+        if (!hourlyData.has(hour)) {
+          hourlyData.set(hour, { hour, count: 0, successful: 0, failed: 0 })
         }
 
-        // ファイル削除
-        await fs.unlink(this.config.storageFile)
+        const data = hourlyData.get(hour)
+        data.count++
 
-        this.logger.info('Tweet history file securely deleted')
+        if (tweet.status === 'success') data.successful++
+        if (tweet.status === 'failed') data.failed++
+      })
+
+      return Array.from(hourlyData.values()).sort((a, b) => a.hour - b.hour)
+    } catch (error) {
+      this.logger.error('Error calculating hourly stats', { error: error.message })
+      return []
+    }
+  }
+
+  getDailyStats () {
+    try {
+      const dailyData = new Map()
+
+      this.tweets.forEach(tweet => {
+        const date = new Date(tweet.createdAt).toISOString().split('T')[0]
+        if (!dailyData.has(date)) {
+          dailyData.set(date, { date, count: 0, successful: 0, failed: 0 })
+        }
+
+        const data = dailyData.get(date)
+        data.count++
+
+        if (tweet.status === 'success') data.successful++
+        if (tweet.status === 'failed') data.failed++
+      })
+
+      return Array.from(dailyData.values()).sort((a, b) => a.date.localeCompare(b.date))
+    } catch (error) {
+      this.logger.error('Error calculating daily stats', { error: error.message })
+      return []
+    }
+  }
+
+  async cleanupOldData (days = 30) {
+    try {
+      const cutoffDate = new Date()
+      cutoffDate.setDate(cutoffDate.getDate() - days)
+
+      const initialLength = this.tweets.length
+      this.tweets = this.tweets.filter(tweet =>
+        new Date(tweet.createdAt) > cutoffDate
+      )
+
+      const deletedCount = initialLength - this.tweets.length
+
+      this.logger.info('Cleaned up old data', {
+        deletedCount,
+        remaining: this.tweets.length,
+        cutoffDate: cutoffDate.toISOString()
+      })
+
+      return deletedCount
+    } catch (error) {
+      this.logger.error('Error cleaning up old data', { error: error.message })
+      return 0
+    }
+  }
+
+  async cleanupByStatus (status) {
+    try {
+      const initialLength = this.tweets.length
+      this.tweets = this.tweets.filter(tweet => tweet.status !== status)
+
+      const deletedCount = initialLength - this.tweets.length
+
+      this.logger.info('Cleaned up by status', {
+        status,
+        deletedCount,
+        remaining: this.tweets.length
+      })
+
+      return deletedCount
+    } catch (error) {
+      this.logger.error('Error cleaning up by status', { error: error.message, status })
+      return 0
+    }
+  }
+
+  async save () {
+    try {
+      if (!this.config.enablePersistence) return
+
+      const filePath = path.join(this.config.storagePath, 'tweet-history.json')
+      const data = {
+        version: '1.0.0',
+        saved: new Date().toISOString(),
+        config: this.config,
+        tweets: this.tweets
       }
 
-      // メモリからも削除
-      this.tweetHistory = []
-      this.hashIndex.clear()
-      this.isLoaded = false
-      this.isDirty = false
+      await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8')
+
+      this.logger.debug('History saved to file', {
+        filePath,
+        tweetCount: this.tweets.length
+      })
     } catch (error) {
-      this.logger.error('Secure delete failed', { error: error.message })
+      this.logger.error('Failed to save history', { error: error.message })
       throw error
     }
   }
 
-  /**
-   * クリーンアップ
-   */
+  async load () {
+    try {
+      if (!this.config.enablePersistence) return
+
+      const filePath = path.join(this.config.storagePath, 'tweet-history.json')
+
+      try {
+        const fileContent = await fs.readFile(filePath, 'utf8')
+        const data = JSON.parse(fileContent)
+
+        if (data.tweets && Array.isArray(data.tweets)) {
+          this.tweets = data.tweets
+
+          this.logger.info('History loaded from file', {
+            filePath,
+            tweetCount: this.tweets.length
+          })
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error
+        }
+        // ファイルが存在しない場合は無視
+        this.logger.info('No existing history file found, starting fresh')
+      }
+    } catch (error) {
+      this.logger.error('Failed to load history', { error: error.message })
+      throw error
+    }
+  }
+
+  async exportToJSON () {
+    try {
+      const exportData = {
+        version: '1.0.0',
+        exported: new Date().toISOString(),
+        metadata: {
+          totalTweets: this.tweets.length,
+          stats: this.getStats()
+        },
+        tweets: this.tweets
+      }
+
+      return JSON.stringify(exportData, null, 2)
+    } catch (error) {
+      this.logger.error('Failed to export to JSON', { error: error.message })
+      throw error
+    }
+  }
+
+  async importFromJSON (jsonData) {
+    try {
+      const data = JSON.parse(jsonData)
+
+      if (!data.tweets || !Array.isArray(data.tweets)) {
+        throw new Error('Invalid JSON format: tweets array not found')
+      }
+
+      // 重複を避けるため、既存のハッシュを取得
+      const existingHashes = new Set(this.tweets.map(t => t.contentHash))
+
+      const importedTweets = data.tweets.filter(tweet => {
+        if (!tweet.contentHash) {
+          tweet.contentHash = this.generateContentHash(tweet.text)
+        }
+        return !existingHashes.has(tweet.contentHash)
+      })
+
+      // インポートしたツイートを追加
+      this.tweets = [...importedTweets, ...this.tweets]
+
+      // サイズ制限
+      if (this.tweets.length > this.config.maxHistorySize) {
+        this.tweets = this.tweets.slice(0, this.config.maxHistorySize)
+      }
+
+      this.logger.info('History imported from JSON', {
+        importedCount: importedTweets.length,
+        totalCount: this.tweets.length
+      })
+
+      return importedTweets.length
+    } catch (error) {
+      this.logger.error('Failed to import from JSON', { error: error.message })
+      throw error
+    }
+  }
+
+  startAutoSave () {
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer)
+    }
+
+    this.autoSaveTimer = setInterval(async () => {
+      try {
+        await this.save()
+      } catch (error) {
+        this.logger.error('Auto-save failed', { error: error.message })
+      }
+    }, this.config.autoSaveInterval)
+
+    this.logger.debug('Auto-save started', {
+      interval: this.config.autoSaveInterval
+    })
+  }
+
+  stopAutoSave () {
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer)
+      this.autoSaveTimer = null
+      this.logger.debug('Auto-save stopped')
+    }
+  }
+
   async cleanup () {
     try {
       this.stopAutoSave()
+      this.tweets = []
+      this.initialized = false
 
-      if (this.isDirty) {
-        await this.saveHistory()
-      }
-
-      this.tweetHistory = []
-      this.hashIndex.clear()
-      this.isLoaded = false
-
-      this.logger.info('Tweet history cleaned up')
+      this.logger.info('TweetHistory cleanup completed')
     } catch (error) {
-      this.logger.error('Cleanup failed', { error: error.message })
-      throw error
+      this.logger.error('Error during cleanup', { error: error.message })
     }
   }
 
-  /**
-   * 全ツイートを取得（テスト用）
-   */
-  async getAllTweets () {
-    if (!this.isLoaded) {
-      await this.loadHistory()
-    }
-    return [...this.tweetHistory]
+  // Alias for load method to match API expectations
+  async loadHistory () {
+    return this.load()
   }
 
-  /**
-   * ダッシュボードAPIのためのツイート取得
-   */
-  async getTweets (options = {}) {
-    if (!this.isLoaded) {
-      await this.loadHistory()
+  // ダッシュボードAPI用ツイート一覧取得
+  getTweets (filters = {}) {
+    try {
+      // getHistoryと同じロジックを使用
+      const tweets = this.getHistory(filters)
+
+      // API用に軽量化されたデータを返す
+      return tweets.map(tweet => ({
+        id: tweet.id,
+        text: tweet.text.length > 100 ? tweet.text.substring(0, 100) + '...' : tweet.text,
+        status: tweet.status,
+        createdAt: tweet.createdAt,
+        url: tweet.url || null
+      }))
+    } catch (error) {
+      this.logger.error('Error getting tweets for API', { error: error.message })
+      return []
     }
+  }
 
-    const {
-      status,
-      category,
-      startDate,
-      endDate,
-      limit = 100,
-      offset = 0
-    } = options
-
-    let filteredTweets = [...this.tweetHistory]
-
-    // ステータスフィルタ
-    if (status) {
-      if (status === 'sent') {
-        filteredTweets = filteredTweets.filter(tweet => tweet.metadata.posted === true)
-      } else if (status === 'pending') {
-        filteredTweets = filteredTweets.filter(tweet => tweet.metadata.posted === false)
-      } else if (status === 'failed') {
-        filteredTweets = filteredTweets.filter(tweet => tweet.metadata.error)
+  // ダッシュボードAPI用統計情報取得 (getStatsのエイリアス)
+  getStatistics (filters = {}) {
+    try {
+      const stats = this.getStats(filters)
+      return {
+        ...stats,
+        hourlyData: this.getHourlyStats(),
+        dailyData: this.getDailyStats()
       }
-    }
-
-    // カテゴリフィルタ
-    if (category) {
-      filteredTweets = filteredTweets.filter(tweet =>
-        tweet.metadata.category === category
-      )
-    }
-
-    // 日付フィルタ
-    if (startDate) {
-      const start = new Date(startDate)
-      filteredTweets = filteredTweets.filter(tweet =>
-        new Date(tweet.timestamp) >= start
-      )
-    }
-
-    if (endDate) {
-      const end = new Date(endDate)
-      filteredTweets = filteredTweets.filter(tweet =>
-        new Date(tweet.timestamp) <= end
-      )
-    }
-
-    // 最新順にソート
-    filteredTweets.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-
-    // ページネーション
-    const paginatedTweets = filteredTweets.slice(offset, offset + limit)
-
-    // API形式に変換
-    return paginatedTweets.map(tweet => ({
-      id: tweet.id,
-      content: tweet.text,
-      status: tweet.metadata.posted ? 'sent' : 'pending',
-      category: tweet.metadata.category || 'general',
-      createdAt: tweet.timestamp,
-      url: tweet.metadata.sourceUrl || null,
-      hashtags: tweet.metadata.tags || [],
-      platform: tweet.metadata.platform || 'twitter',
-      error: tweet.metadata.error || null
-    }))
-  }
-
-  /**
-   * ダッシュボードAPI用の統計情報取得
-   */
-  async getStatistics () {
-    if (!this.isLoaded) {
-      await this.loadHistory()
-    }
-
-    const stats = this.getStats()
-
-    // 今日のツイート数を計算
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayTweets = this.tweetHistory.filter(tweet =>
-      new Date(tweet.timestamp) >= today
-    )
-
-    // 週間ツイート数を計算
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
-    const weeklyTweets = this.tweetHistory.filter(tweet =>
-      new Date(tweet.timestamp) >= weekAgo
-    )
-
-    return {
-      total: stats.total.all,
-      posted: stats.posting.posted,
-      pending: stats.posting.unposted,
-      failed: this.tweetHistory.filter(tweet => tweet.metadata.error).length,
-      today: todayTweets.length,
-      thisWeek: weeklyTweets.length,
-      categories: stats.categories,
-      successRate: parseFloat(stats.posting.postingRate.replace('%', '')),
-      duplicateRate: parseFloat(stats.duplicates.uniqueRatio.replace('%', ''))
+    } catch (error) {
+      this.logger.error('Error getting statistics for API', { error: error.message })
+      return { total: 0, successful: 0, failed: 0, pending: 0, successRate: 0 }
     }
   }
 }

@@ -1,142 +1,31 @@
 {
-  "description": "Twitter API v2 設定ファイル",
-  "version": "1.0.0",
   "api": {
     "version": "v2",
     "baseUrl": "https://api.twitter.com/2",
     "timeout": 30000,
-    "retryAttempts": 3,
+    "retryCount": 3,
     "retryDelay": 1000
   },
-  "authentication": {
-    "type": "oauth2",
-    "requiredCredentials": [
-      "TWITTER_API_KEY",
-      "TWITTER_API_SECRET", 
-      "TWITTER_ACCESS_TOKEN",
-      "TWITTER_ACCESS_TOKEN_SECRET"
-    ],
-    "optionalCredentials": [
-      "TWITTER_BEARER_TOKEN"
-    ]
+  "rateLimit": {
+    "tweetsPerHour": 50,
+    "tweetsPerDay": 1000,
+    "requestsPerMinute": 100,
+    "cooldownPeriod": 15
   },
-  "rateLimits": {
-    "tweets": {
-      "perHour": 300,
-      "perDay": 2400,
-      "perMonth": 50000
-    },
-    "reads": {
-      "per15min": 75,
-      "perHour": 300
-    },
-    "safety": {
-      "bufferPercentage": 10,
-      "enableBackoff": true,
-      "backoffMultiplier": 1.5
-    }
-  },
-  "posting": {
-    "defaultSettings": {
-      "reply_settings": "everyone",
-      "for_super_followers_only": false
-    },
-    "validation": {
-      "maxLength": 280,
-      "minLength": 1,
-      "allowEmptyTweets": false
-    },
-    "scheduling": {
-      "enabled": true,
-      "minInterval": 300000,
-      "maxDailyTweets": 50
-    },
-    "safety": {
-      "duplicateCheck": true,
-      "spamPrevention": true,
-      "contentModeration": true
-    }
+  "validation": {
+    "maxTweetLength": 280,
+    "allowedMediaTypes": ["image/jpeg", "image/png", "image/gif"],
+    "maxMediaFiles": 4
   },
   "retry": {
     "maxAttempts": 3,
+    "backoffMultiplier": 2,
     "baseDelay": 1000,
-    "maxDelay": 30000,
-    "exponentialBackoff": true,
-    "jitterEnabled": true,
-    "retryOnErrors": [
-      "ECONNRESET",
-      "ENOTFOUND", 
-      "ECONNREFUSED",
-      "ETIMEDOUT",
-      429,
-      500,
-      502,
-      503,
-      504
-    ]
+    "maxDelay": 10000
   },
   "monitoring": {
-    "enableMetrics": true,
-    "logLevel": "info",
-    "trackUsage": true,
-    "alertThresholds": {
-      "hourlyUsage": 80,
-      "dailyUsage": 90,
-      "monthlyUsage": 95
-    }
-  },
-  "cache": {
-    "enabled": true,
-    "ttl": 3600000,
-    "maxSize": 1000,
-    "cleanupInterval": 300000
-  },
-  "webhooks": {
-    "enabled": false,
-    "endpoints": [],
-    "retryFailedWebhooks": true,
-    "webhookTimeout": 5000
-  },
-  "features": {
-    "mediaUpload": {
-      "enabled": true,
-      "maxFileSize": 5242880,
-      "allowedTypes": ["image/jpeg", "image/png", "image/gif"]
-    },
-    "threads": {
-      "enabled": true,
-      "maxThreadLength": 25,
-      "autoNumbering": true
-    },
-    "hashtags": {
-      "autoGenerate": true,
-      "maxCount": 5,
-      "popularityThreshold": 100
-    }
-  },
-  "security": {
-    "validateInput": true,
-    "sanitizeContent": true,
-    "preventInjection": true,
-    "encryptCredentials": true
-  },
-  "development": {
-    "dryRun": false,
-    "mockMode": false,
-    "verboseLogging": true,
-    "testEndpoints": {
-      "enabled": false,
-      "sandbox": "https://api.twitter.com/labs"
-    }
-  },
-  "fallback": {
-    "enableFallback": true,
-    "fallbackStrategies": [
-      "queue",
-      "schedule",
-      "store"
-    ],
-    "maxQueueSize": 100,
-    "queueTimeout": 86400000
+    "trackApiUsage": true,
+    "logFailures": true,
+    "enableMetrics": true
   }
 }

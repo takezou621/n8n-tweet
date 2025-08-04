@@ -1,324 +1,303 @@
-/**
- * TwitterClient unit tests
- * Twitter API統合機能のテスト
- * TDD Red → Green → Refactor approach
- */
-
 const TwitterClient = require('../../src/integrations/twitter-client')
+const RateLimiter = require('../../src/utils/rate-limiter')
 
-// Mockデータ（有効な形式に準拠）
-const mockCredentials = {
-  apiKey: 'abcdefghijklmnopqrstuvwxy', // 25文字の英数字
-  apiSecret: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', // 50文字の英数字
-  accessToken: '1234567890-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL', // 数字-40文字の英数字
-  accessTokenSecret: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRS' // 45文字の英数字
-}
-
-const mockConfig = {
-  credentials: mockCredentials,
-  rateLimitDelay: 1000, // テスト用に短縮
-  maxRetries: 2,
-  enableDryRun: true // テストではドライランモード
-}
+// モック設定
+jest.mock('../../src/utils/rate-limiter')
+jest.mock('../../src/utils/logger', () => ({
+  createLogger: jest.fn(() => ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn()
+  }))
+}))
 
 describe('TwitterClient', () => {
   let twitterClient
+  let mockRateLimiter
+  let mockCredentials
 
   beforeEach(() => {
-    // 各テストの前に新しいインスタンスを作成
-    twitterClient = new TwitterClient(mockConfig)
+    // RateLimiterのモック
+    mockRateLimiter = {
+      checkLimit: jest.fn().mockResolvedValue({
+        allowed: true,
+        reason: 'Within limits',
+        waitTime: 0
+      }),
+      recordRequest: jest.fn(),
+      getStats: jest.fn().mockReturnValue({
+        requests: 0,
+        remaining: 100
+      })
+    }
+    RateLimiter.mockImplementation(() => mockRateLimiter)
+
+    // Twitter認証情報のモック
+    mockCredentials = {
+      bearerToken: 'test_bearer_token',
+      apiKey: 'test_api_key',
+      apiSecret: 'test_api_secret',
+      accessToken: 'test_access_token',
+      accessTokenSecret: 'test_access_token_secret'
+    }
+
+    // fetchのモック
+    global.fetch = jest.fn()
   })
 
   afterEach(() => {
-    // テスト後のクリーンアップ
-    twitterClient = null
+    jest.clearAllMocks()
   })
 
-  describe('Constructor and Initialization', () => {
-    it('should initialize with default configuration', () => {
-      const client = new TwitterClient({ credentials: mockCredentials })
-
-      expect(client.config.rateLimitDelay).toBe(60000)
-      expect(client.config.maxRetries).toBe(3)
-      expect(client.config.enableDryRun).toBe(false)
-    })
-
-    it('should merge custom configuration with defaults', () => {
-      expect(twitterClient.config.rateLimitDelay).toBe(1000)
-      expect(twitterClient.config.enableDryRun).toBe(true)
-      expect(twitterClient.config.maxRetries).toBe(2)
-    })
-
-    it('should throw error when credentials are missing', () => {
+  describe('初期化', () => {
+    test('有効な認証情報でTwitterClientインスタンスが作成できる', () => {
       expect(() => {
-        const client = new TwitterClient({})
-        return client
-      }).toThrow('Twitter API credentials are required')
+        twitterClient = new TwitterClient(mockCredentials)
+      }).not.toThrow()
+
+      expect(twitterClient).toBeInstanceOf(TwitterClient)
+      expect(twitterClient.credentials).toEqual(mockCredentials)
     })
 
-    it('should throw error when credentials are incomplete', () => {
+    test('認証情報がない場合はエラーをスローする', () => {
+      expect(() => {
+        new TwitterClient() // eslint-disable-line no-new
+      }).toThrow('Twitter credentials are required')
+    })
+
+    test('必須フィールドが不足している場合はエラーをスローする', () => {
       const incompleteCredentials = {
-        credentials: {
-          apiKey: 'test_key'
-          // missing other credentials
+        bearerToken: 'test_token'
+      }
+
+      expect(() => {
+        new TwitterClient(incompleteCredentials) // eslint-disable-line no-new
+      }).toThrow('Missing required Twitter credential fields')
+    })
+  })
+
+  describe('ツイート投稿', () => {
+    beforeEach(() => {
+      twitterClient = new TwitterClient(mockCredentials)
+    })
+
+    test('正常なツイートが投稿できる', async () => {
+      const tweetText = 'Test tweet content'
+      const mockResponse = {
+        data: {
+          id: '1234567890',
+          text: tweetText
         }
       }
 
-      expect(() => {
-        const client = new TwitterClient(incompleteCredentials)
-        return client
-      }).toThrow('apiSecret is required and must be a non-empty string')
-    })
-
-    it('should initialize empty post history', () => {
-      expect(twitterClient.postHistory).toEqual([])
-      expect(twitterClient.lastPostTime).toBeNull()
-    })
-  })
-
-  describe('Rate Limiting', () => {
-    it('should allow posting when no previous posts', () => {
-      const rateLimit = twitterClient.checkRateLimit()
-
-      expect(rateLimit.canPost).toBe(true)
-      expect(rateLimit.waitTime).toBeUndefined()
-    })
-
-    it('should enforce rate limit when posting too quickly', () => {
-      // 前回の投稿時間を設定
-      twitterClient.lastPostTime = Date.now() - 500 // 500ms前
-
-      const rateLimit = twitterClient.checkRateLimit()
-
-      expect(rateLimit.canPost).toBe(false)
-      expect(rateLimit.waitTime).toBeGreaterThan(0)
-      expect(rateLimit.message).toContain('Rate limit')
-    })
-
-    it('should allow posting after rate limit delay', () => {
-      // 前回の投稿時間を設定（十分に時間が経過）
-      twitterClient.lastPostTime = Date.now() - 2000 // 2秒前（制限は1秒）
-
-      const rateLimit = twitterClient.checkRateLimit()
-
-      expect(rateLimit.canPost).toBe(true)
-    })
-  })
-
-  describe('Tweet Validation', () => {
-    it('should validate correct tweet data', async () => {
-      const validTweet = { text: 'This is a valid tweet' }
-
-      await expect(
-        twitterClient.validateTweet(validTweet)
-      ).resolves.not.toThrow()
-    })
-
-    it('should reject empty tweet text', async () => {
-      const emptyTweet = { text: '' }
-
-      await expect(
-        twitterClient.validateTweet(emptyTweet)
-      ).rejects.toThrow('Tweet text cannot be empty')
-    })
-
-    it('should reject missing tweet text', async () => {
-      const noTextTweet = {}
-
-      await expect(
-        twitterClient.validateTweet(noTextTweet)
-      ).rejects.toThrow('Tweet text is required')
-    })
-
-    it('should reject non-string tweet text', async () => {
-      const invalidTweet = { text: 123 }
-
-      await expect(
-        twitterClient.validateTweet(invalidTweet)
-      ).rejects.toThrow('Tweet text must be a string')
-    })
-
-    it('should reject tweet text over 280 characters', async () => {
-      const longText = 'a'.repeat(281)
-      const longTweet = { text: longText }
-
-      await expect(
-        twitterClient.validateTweet(longTweet)
-      ).rejects.toThrow('Tweet text too long')
-    })
-
-    it('should detect duplicate tweets', async () => {
-      const tweetText = 'This is a duplicate test'
-
-      // 投稿履歴に同じテキストを追加
-      twitterClient.postHistory.push({
-        text: tweetText,
-        success: true,
-        timestamp: new Date().toISOString()
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve(mockResponse)
       })
 
-      const duplicateTweet = { text: tweetText }
-
-      await expect(
-        twitterClient.validateTweet(duplicateTweet)
-      ).rejects.toThrow('Duplicate tweet detected')
-    })
-  })
-
-  describe('Single Tweet Posting', () => {
-    it('should successfully post tweet in dry run mode', async () => {
-      const tweetData = { text: 'Test tweet for dry run' }
-
-      const result = await twitterClient.postTweet(tweetData)
+      const result = await twitterClient.postTweet(tweetText)
 
       expect(result.success).toBe(true)
-      expect(result.dryRun).toBe(true)
-      expect(result.data.text).toBe(tweetData.text)
-      expect(result.data.id).toContain('dry-run-')
+      expect(result.data.id).toBe('1234567890')
+      expect(mockRateLimiter.checkLimit).toHaveBeenCalledWith('tweets')
+      expect(mockRateLimiter.recordRequest).toHaveBeenCalledWith('tweets', true)
     })
 
-    it('should add successful post to history', async () => {
-      const tweetData = { text: 'Test tweet for history' }
+    test('レート制限に達した場合はエラーを返す', async () => {
+      mockRateLimiter.checkLimit.mockResolvedValueOnce({
+        allowed: false,
+        reason: 'Rate limit exceeded',
+        waitTime: 3600000
+      })
 
-      await twitterClient.postTweet(tweetData)
-
-      expect(twitterClient.postHistory).toHaveLength(1)
-      expect(twitterClient.postHistory[0].text).toBe(tweetData.text)
-      expect(twitterClient.postHistory[0].success).toBe(true)
-      expect(twitterClient.lastPostTime).not.toBeNull()
-    })
-
-    it('should handle posting failure gracefully', async () => {
-      const invalidTweet = { text: '' } // 空のテキストでエラーを発生させる
-
-      const result = await twitterClient.postTweet(invalidTweet)
+      const result = await twitterClient.postTweet('Test tweet')
 
       expect(result.success).toBe(false)
-      expect(result.error).toContain('An error occurred while communicating with Twitter API.')
+      expect(result.error.type).toBe('rate_limit')
+      expect(result.error.message).toContain('Rate limit exceeded')
+    })
 
-      // 失敗した投稿も履歴に記録される
-      expect(twitterClient.postHistory).toHaveLength(1)
-      expect(twitterClient.postHistory[0].success).toBe(false)
+    test('280文字を超えるツイートはエラーを返す', async () => {
+      const longTweet = 'a'.repeat(281)
+
+      const result = await twitterClient.postTweet(longTweet)
+
+      expect(result.success).toBe(false)
+      expect(result.error.type).toBe('validation')
+      expect(result.error.message).toContain('exceeds maximum length')
+    })
+
+    test('空のツイートはエラーを返す', async () => {
+      const result = await twitterClient.postTweet('')
+
+      expect(result.success).toBe(false)
+      expect(result.error.type).toBe('validation')
+      expect(result.error.message).toContain('Tweet text is required')
+    })
+
+    test('API認証エラーの場合はエラーを返す', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({
+          errors: [{ message: 'Unauthorized' }]
+        })
+      })
+
+      const result = await twitterClient.postTweet('Test tweet')
+
+      expect(result.success).toBe(false)
+      expect(result.error.type).toBe('authentication')
+      expect(result.error.statusCode).toBe(401)
+    })
+
+    test('サーバーエラーの場合はリトライされる', async () => {
+      global.fetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ error: 'Internal server error' })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 201,
+          json: () => Promise.resolve({
+            data: { id: '1234567890', text: 'Test tweet' }
+          })
+        })
+
+      const result = await twitterClient.postTweet('Test tweet')
+
+      expect(result.success).toBe(true)
+      expect(global.fetch).toHaveBeenCalledTimes(2)
     })
   })
 
-  describe('Batch Tweet Posting', () => {
-    it('should post multiple tweets successfully', async () => {
-      const tweets = [
-        { text: 'First tweet' },
-        { text: 'Second tweet' },
-        { text: 'Third tweet' }
-      ]
-
-      const result = await twitterClient.postMultipleTweets(tweets)
-
-      expect(result.total).toBe(3)
-      expect(result.successful).toBe(3)
-      expect(result.failed).toBe(0)
-      expect(result.results).toHaveLength(3)
-
-      // 全ての投稿が履歴に記録されている
-      expect(twitterClient.postHistory).toHaveLength(3)
-    })
-
-    it('should handle mixed success and failure in batch', async () => {
-      const tweets = [
-        { text: 'Valid tweet' },
-        { text: '' }, // 無効なツイート
-        { text: 'Another valid tweet' }
-      ]
-
-      const result = await twitterClient.postMultipleTweets(tweets)
-
-      expect(result.total).toBe(3)
-      expect(result.successful).toBe(2)
-      expect(result.failed).toBe(1)
-    })
-  })
-
-  describe('Post History and Statistics', () => {
+  describe('ツイート検証', () => {
     beforeEach(() => {
-      // テスト用の履歴データを追加
-      twitterClient.postHistory = [
-        { text: 'Tweet 1', success: true, timestamp: '2024-01-01T10:00:00Z' },
-        { text: 'Tweet 2', success: false, timestamp: '2024-01-01T11:00:00Z' },
-        { text: 'Tweet 3', success: true, timestamp: '2024-01-01T12:00:00Z' }
-      ]
+      twitterClient = new TwitterClient(mockCredentials)
     })
 
-    it('should return post history in correct order', () => {
-      const history = twitterClient.getPostHistory()
+    test('有効なツイートテキストの検証が成功する', () => {
+      const validTweet = 'This is a valid tweet'
 
-      expect(history).toHaveLength(3)
-      // 最新が最初に来るようにソートされている
-      expect(history[0].timestamp).toBe('2024-01-01T12:00:00Z')
+      const result = twitterClient.validateTweet(validTweet)
+
+      expect(result.isValid).toBe(true)
+      expect(result.errors).toHaveLength(0)
     })
 
-    it('should limit post history when requested', () => {
-      const history = twitterClient.getPostHistory(2)
+    test('長すぎるツイートテキストの検証が失敗する', () => {
+      const longTweet = 'a'.repeat(281)
 
-      expect(history).toHaveLength(2)
+      const result = twitterClient.validateTweet(longTweet)
+
+      expect(result.isValid).toBe(false)
+      expect(result.errors).toContain('Tweet exceeds maximum length of 280 characters')
     })
 
-    it('should calculate correct statistics', () => {
+    test('空のツイートテキストの検証が失敗する', () => {
+      const result = twitterClient.validateTweet('')
+
+      expect(result.isValid).toBe(false)
+      expect(result.errors).toContain('Tweet text is required')
+    })
+
+    test('ホワイトスペースのみのツイートの検証が失敗する', () => {
+      const result = twitterClient.validateTweet('   \n\t   ')
+
+      expect(result.isValid).toBe(false)
+      expect(result.errors).toContain('Tweet text is required')
+    })
+  })
+
+  describe('接続テスト', () => {
+    beforeEach(() => {
+      twitterClient = new TwitterClient(mockCredentials)
+    })
+
+    test('正常な接続テストが成功する', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          data: {
+            id: 'test_user_id',
+            name: 'Test User',
+            username: 'testuser'
+          }
+        })
+      })
+
+      const result = await twitterClient.testConnection()
+
+      expect(result.success).toBe(true)
+      expect(result.user).toBeDefined()
+      expect(result.user.id).toBe('test_user_id')
+    })
+
+    test('認証失敗の場合は接続テストが失敗する', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({
+          errors: [{ message: 'Unauthorized' }]
+        })
+      })
+
+      const result = await twitterClient.testConnection()
+
+      expect(result.success).toBe(false)
+      expect(result.error.type).toBe('authentication')
+    })
+  })
+
+  describe('統計情報', () => {
+    beforeEach(() => {
+      twitterClient = new TwitterClient(mockCredentials)
+    })
+
+    test('統計情報を取得できる', () => {
       const stats = twitterClient.getStats()
 
-      expect(stats.total).toBe(3)
-      expect(stats.successful).toBe(2)
-      expect(stats.failed).toBe(1)
-      expect(stats.successRate).toBe('66.67%')
+      expect(stats).toHaveProperty('totalTweets')
+      expect(stats).toHaveProperty('successfulTweets')
+      expect(stats).toHaveProperty('failedTweets')
+      expect(stats).toHaveProperty('successRate')
+      expect(stats).toHaveProperty('rateLimitStats')
+      expect(stats.totalTweets).toBe(0)
+      expect(stats.successRate).toBe(0)
     })
 
-    it('should handle empty history for statistics', () => {
-      twitterClient.postHistory = []
+    test('ツイート投稿後に統計情報が更新される', async () => {
+      global.fetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve({
+          data: { id: '1234567890', text: 'Test tweet' }
+        })
+      })
 
+      await twitterClient.postTweet('Test tweet')
       const stats = twitterClient.getStats()
 
-      expect(stats.total).toBe(0)
-      expect(stats.successful).toBe(0)
-      expect(stats.failed).toBe(0)
-      expect(stats.successRate).toBe('0%')
+      expect(stats.totalTweets).toBe(1)
+      expect(stats.successfulTweets).toBe(1)
+      expect(stats.successRate).toBe(100)
     })
   })
 
-  describe('Configuration Management', () => {
-    it('should update configuration correctly', () => {
-      const newConfig = {
-        rateLimitDelay: 2000,
-        enableDryRun: false
-      }
-
-      twitterClient.updateConfig(newConfig)
-
-      expect(twitterClient.config.rateLimitDelay).toBe(2000)
-      expect(twitterClient.config.enableDryRun).toBe(false)
-      expect(twitterClient.config.maxRetries).toBe(2) // 既存の設定は保持
+  describe('クリーンアップ', () => {
+    beforeEach(() => {
+      twitterClient = new TwitterClient(mockCredentials)
     })
-  })
 
-  describe('Health Check', () => {
-    it('should return health status', async () => {
-      // twitter-api-v2をモックしていないので、認証は失敗する想定
-      const health = await twitterClient.healthCheck()
-
-      expect(health).toHaveProperty('status')
-      expect(health).toHaveProperty('authenticated')
-      expect(health).toHaveProperty('timestamp')
-      expect(health).toHaveProperty('stats')
-    })
-  })
-
-  describe('Utility Functions', () => {
-    it('should sleep for specified duration', async () => {
-      const startTime = Date.now()
-
-      await twitterClient.sleep(100)
-
-      const endTime = Date.now()
-      const duration = endTime - startTime
-
-      expect(duration).toBeGreaterThanOrEqual(100)
-      expect(duration).toBeLessThan(150) // 余裕を持って150ms以内
+    test('クリーンアップ処理が正常に実行される', () => {
+      expect(() => {
+        twitterClient.cleanup()
+      }).not.toThrow()
     })
   })
 })

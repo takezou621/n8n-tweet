@@ -11,7 +11,6 @@ const fs = require('fs')
 const FeedParser = require('../../src/utils/feed-parser')
 const ContentFilter = require('../../src/filters/content-filter')
 const TweetGenerator = require('../../src/generators/tweet-generator')
-// const TwitterClient = require('../../src/integrations/twitter-client')
 const RateLimiter = require('../../src/utils/rate-limiter')
 const TweetHistory = require('../../src/storage/tweet-history')
 const { createLogger } = require('../../src/utils/logger')
@@ -76,22 +75,18 @@ describe('Performance and Load Tests', () => {
     const resultsPath = path.join(__dirname, '../data/performance-results.json')
     fs.writeFileSync(resultsPath, JSON.stringify(performanceMetrics, null, 2))
 
-    // eslint-disable-next-line no-console
-    console.log('\n🚀 Performance Test Summary:')
-    // eslint-disable-next-line no-console
-    console.log(`Total Tests: ${performanceMetrics.summary.totalTests}`)
-    // eslint-disable-next-line no-console
-    console.log(`Passed Tests: ${performanceMetrics.summary.passedTests}`)
-    // eslint-disable-next-line no-console
-    console.log(`Average Response Time: ${performanceMetrics.summary.averageResponseTime}ms`)
-    // eslint-disable-next-line no-console
-    console.log(`Max Response Time: ${performanceMetrics.summary.maxResponseTime}ms`)
-    // eslint-disable-next-line no-console
-    console.log(`Min Response Time: ${performanceMetrics.summary.minResponseTime}ms`)
+    // Performance test summary logging
+    logger.info('Performance Test Summary:', {
+      totalTests: performanceMetrics.summary.totalTests,
+      passedTests: performanceMetrics.summary.passedTests,
+      averageResponseTime: `${performanceMetrics.summary.averageResponseTime}ms`,
+      maxResponseTime: `${performanceMetrics.summary.maxResponseTime}ms`,
+      minResponseTime: `${performanceMetrics.summary.minResponseTime}ms`
+    })
   })
 
-  beforeEach(() => {
-    rateLimiter.reset()
+  beforeEach(async () => {
+    await rateLimiter.resetLimits('tweets')
   })
 
   /**
@@ -279,13 +274,14 @@ describe('Performance and Load Tests', () => {
       const duration = Date.now() - startTime
       const tweetsPerSecond = (tweets.length / (duration / 1000)).toFixed(2)
 
-      recordMetric('batch_tweet_generation', duration, tweets.length === articles.length, {
-        articlesCount: articles.length,
-        tweetsGenerated: tweets.length,
-        tweetsPerSecond,
-        avgTweetLength: (tweets.reduce((sum, t) => sum + t.text.length, 0) /
-          tweets.length).toFixed(1)
-      })
+      recordMetric('batch_tweet_generation', duration,
+        tweets.length === articles.length, {
+          articlesCount: articles.length,
+          tweetsGenerated: tweets.length,
+          tweetsPerSecond,
+          avgTweetLength: (tweets.reduce((sum, t) => sum + t.text.length, 0) /
+            tweets.length).toFixed(1)
+        })
 
       expect(duration).toBeLessThan(15000) // 15秒以内
       expect(tweets.length).toBe(articles.length)
@@ -476,10 +472,14 @@ describe('Performance and Load Tests', () => {
  */
 function generateMockArticles (count, aiRelated = false) {
   const articles = []
-  const aiKeywords = ['artificial intelligence', 'machine learning', 'deep learning',
-    'neural network', 'AI', 'ML', 'algorithm', 'automation']
-  const generalKeywords = ['technology', 'innovation', 'software',
-    'development', 'business', 'research']
+  const aiKeywords = [
+    'artificial intelligence', 'machine learning', 'deep learning',
+    'neural network', 'AI', 'ML', 'algorithm', 'automation'
+  ]
+  const generalKeywords = [
+    'technology', 'innovation', 'software',
+    'development', 'business', 'research'
+  ]
 
   for (let i = 0; i < count; i++) {
     const keywords = aiRelated ? aiKeywords : [...aiKeywords, ...generalKeywords]

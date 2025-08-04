@@ -18,6 +18,10 @@ global.console = {
 process.env.NODE_ENV = 'test'
 process.env.LOG_LEVEL = 'error'
 
+// Fix EventEmitter memory leak warnings in test environment
+// テスト環境でEventEmitterメモリリーク警告を修正
+process.setMaxListeners(50) // テスト時は複数のリスナーが同時に実行されるため増加
+
 // Global test timeout
 jest.setTimeout(30000)
 

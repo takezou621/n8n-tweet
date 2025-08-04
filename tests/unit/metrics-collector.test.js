@@ -222,7 +222,7 @@ describe('MetricsCollector', () => {
 
     test('measureExecutionTimeメソッドが成功時の実行時間を測定する', async () => {
       const testFunction = jest.fn().mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 15))
+        await new Promise(resolve => setTimeout(resolve, 10))
         return 'success'
       })
 
@@ -234,6 +234,7 @@ describe('MetricsCollector', () => {
       // 実行時間メトリクスが記録されているかチェック
       expect(metricsCollector.customMetrics.has('test_operation_duration_ms')).toBe(true)
       const durationMetric = metricsCollector.customMetrics.get('test_operation_duration_ms')
+      expect(durationMetric.value).toBeGreaterThanOrEqual(5) // 5ms以上に調整（CI環境での時間変動を考慮）
       expect(durationMetric.history[0].tags.status).toBe('success')
     })
 
@@ -287,12 +288,9 @@ describe('MetricsCollector', () => {
 
       // メトリクスの値が正しく設定されているかチェック（null でなければOK）
       expect(memUsed.value).not.toBe(null)
-      if (memUsed.value !== undefined) {
-        // eslint-disable-next-line jest/no-conditional-expect
-        expect(typeof memUsed.value).toBe('number')
-        // eslint-disable-next-line jest/no-conditional-expect
-        expect(memUsed.value).toBeGreaterThan(0)
-      }
+      expect(memUsed.value).toBeDefined()
+      expect(typeof memUsed.value).toBe('number')
+      expect(memUsed.value).toBeGreaterThan(0)
     })
   })
 
@@ -389,10 +387,10 @@ describe('MetricsCollector', () => {
       await new Promise(resolve => setTimeout(resolve, 10))
       metricsCollector.recordMetric('stats_test', 60)
 
-      // より長い時間範囲で統計取得（すべての値が取得されることを確認）
-      const stats = metricsCollector.getMetricStats('stats_test', 60000) // 60秒
+      // 極端に短い時間範囲で統計取得（最新の値のみ取得されることを確認）
+      const stats = metricsCollector.getMetricStats('stats_test', 1)
       expect(stats).toBeDefined()
-      expect(stats.count).toBeGreaterThanOrEqual(1)
+      expect(stats.count).toBe(1)
       expect(stats.latest).toBe(60)
     })
   })

@@ -246,18 +246,16 @@ describe('ErrorHandler', () => {
       // 時間窓を短くして古いエラーをクリア
       errorHandler.criticalTimeWindow = 10
 
-      await new Promise((resolve) => {
-        setTimeout(() => {
-          errorHandler.handleCriticalError('critical_test', criticalError)
+      // Promiseベースの待機
+      await new Promise(resolve => setTimeout(resolve, 20))
 
-          // 古いエラーは除外されているはず
-          const currentErrors = errorHandler.criticalErrors.filter(
-            e => Date.now() - e.timestamp < errorHandler.criticalTimeWindow
-          )
-          expect(currentErrors.length).toBe(1)
-          resolve()
-        }, 20)
-      })
+      errorHandler.handleCriticalError('critical_test', criticalError)
+
+      // 古いエラーは除外されているはず
+      const currentErrors = errorHandler.criticalErrors.filter(
+        e => Date.now() - e.timestamp < errorHandler.criticalTimeWindow
+      )
+      expect(currentErrors.length).toBe(1)
     })
   })
 
@@ -379,6 +377,8 @@ describe('ErrorHandler', () => {
       await errorHandler.handleError('test_error', error1)
       await errorHandler.handleError('network_error', error2)
 
+      // 1ms待機してuptimeを確保
+      await new Promise(resolve => setTimeout(resolve, 1))
       const stats = errorHandler.getStats()
 
       expect(stats.total).toBe(2)
