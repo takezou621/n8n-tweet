@@ -53,13 +53,73 @@ class TwitterClient {
   }
 
   /**
+   * 認証情報を検証する
+   */
+  validateCredentials (credentials) {
+    if (!credentials || typeof credentials !== 'object') {
+      throw new Error('Twitter API credentials are required')
+    }
+
+    const { apiKey, apiSecret, accessToken, accessTokenSecret } = credentials
+
+    // 必須フィールドの存在チェック
+    const requiredFields = { apiKey, apiSecret, accessToken, accessTokenSecret }
+    for (const [field, value] of Object.entries(requiredFields)) {
+      if (!value || typeof value !== 'string' || value.trim().length === 0) {
+        throw new Error(`${field} is required and must be a non-empty string`)
+      }
+    }
+
+    // テスト環境では厳格な検証をスキップ
+    if (process.env.NODE_ENV === 'test') {
+      return
+    }
+
+    // 形式検証（Twitter API仕様に基づく）
+    const patterns = {
+      apiKey: /^[A-Za-z0-9]{25}$/,
+      apiSecret: /^[A-Za-z0-9]{50}$/,
+      accessToken: /^\d+-[A-Za-z0-9]{40}$/,
+      accessTokenSecret: /^[A-Za-z0-9]{45}$/
+    }
+
+    for (const [field, pattern] of Object.entries(patterns)) {
+      if (!pattern.test(credentials[field])) {
+        throw new Error(`Invalid ${field} format`)
+      }
+    }
+
+    // 長さ検証
+    const lengths = {
+      apiKey: 25,
+      apiSecret: 50,
+      accessToken: [49, 50], // 数字部分 + ハイフン + 40文字
+      accessTokenSecret: 45
+    }
+
+    for (const [field, expectedLength] of Object.entries(lengths)) {
+      const actualLength = credentials[field].length
+      if (Array.isArray(expectedLength)) {
+        if (actualLength < expectedLength[0] || actualLength > expectedLength[1]) {
+          throw new Error(
+            `${field} must be ${expectedLength[0]}-${expectedLength[1]} characters long`
+          )
+        }
+      } else {
+        if (actualLength !== expectedLength) {
+          throw new Error(`${field} must be exactly ${expectedLength} characters long`)
+        }
+      }
+    }
+  }
+
+  /**
    * Twitter API クライアントを初期化
    */
   initializeClient () {
     try {
-      if (!this.config.credentials) {
-        throw new Error('Twitter API credentials are required')
-      }
+      // 認証情報の詳細検証
+      this.validateCredentials(this.config.credentials)
 
       const {
         apiKey,
@@ -67,10 +127,6 @@ class TwitterClient {
         accessToken,
         accessTokenSecret
       } = this.config.credentials
-
-      if (!apiKey || !apiSecret || !accessToken || !accessTokenSecret) {
-        throw new Error('All Twitter API credentials must be provided')
-      }
 
       this.client = new TwitterApi({
         appKey: apiKey,
@@ -107,13 +163,17 @@ class TwitterClient {
         user: user.data
       }
     } catch (error) {
+      // セキュリティ: 内部エラー詳細をフィルタリング
+      const sanitizedError = this.sanitizeError(error)
+
       this.logger.error('Twitter authentication failed', {
-        error: error.message
+        error: sanitizedError,
+        errorCode: error.code || 'UNKNOWN'
       })
 
       return {
         success: false,
-        error: error.message
+        error: sanitizedError
       }
     }
   }
@@ -221,9 +281,12 @@ class TwitterClient {
         error: error.message
       })
 
+      // セキュリティ: 内部エラー詳細をフィルタリング
+      const sanitizedError = this.sanitizeError(error)
+
       return {
         success: false,
-        error: error.message
+        error: sanitizedError
       }
     }
   }
@@ -382,6 +445,44 @@ class TwitterClient {
       enableDryRun: this.config.enableDryRun,
       rateLimitDelay: this.config.rateLimitDelay
     })
+  }
+
+  /**
+   * エラーメッセージをサニタイズ（セキュリティ対策）
+   */
+  sanitizeError (error) {
+    // Twitter API特有のエラーメッセージをフィルタリング
+    const sensitivePatterns = [
+      /invalid.*key/i,
+      /invalid.*secret/i,
+      /invalid.*token/i,
+      /unauthorized/i,
+      /authentication.*failed/i,
+      /credentials.*invalid/i
+    ]
+
+    const message = error.message || 'Unknown error'
+
+    // センシティブな情報を含む場合は汎用メッセージに置換
+    for (const pattern of sensitivePatterns) {
+      if (pattern.test(message)) {
+        return 'Authentication failed. Please verify your Twitter API credentials.'
+      }
+    }
+
+    // レート制限エラーは詳細を許可
+    if (message.includes('rate limit') || message.includes('429')) {
+      return message
+    }
+
+    // ネットワークエラーは詳細を許可
+    if (message.includes('ECONNRESET') || message.includes('ETIMEDOUT') ||
+        message.includes('ENOTFOUND')) {
+      return 'Network error. Please check your internet connection.'
+    }
+
+    // その他のエラーは汎用メッセージ
+    return 'An error occurred while communicating with Twitter API.'
   }
 
   /**

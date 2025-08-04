@@ -13,7 +13,15 @@
       "Bash(npm run test:coverage:*)",
       "Bash(npm run lint)",
       "Bash(npm run lint:*)",
-      "Bash(npm run test:integration:*)"
+      "Bash(npm run test:integration:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(mv:*)",
+      "Bash(NODE_ENV=test npm test -- tests/unit/twitter-client.test.js --verbose)",
+      "Bash(NODE_ENV=test npm test -- tests/unit/rate-limiter.test.js --verbose)",
+      "Bash(NODE_ENV=test npm test -- tests/integration/twitter-integration.test.js --verbose)",
+      "Bash(NODE_ENV=test npm test -- tests/integration/basic.test.js --verbose)",
+      "Bash(NODE_ENV=test npm test -- tests/unit/twitter-client.test.js)",
+      "Bash(git config:*)"
     ],
     "deny": []
   }

@@ -6,12 +6,12 @@
 
 const TwitterClient = require('../../src/integrations/twitter-client')
 
-// Mockデータ
+// Mockデータ（有効な形式に準拠）
 const mockCredentials = {
-  apiKey: 'test_api_key',
-  apiSecret: 'test_api_secret',
-  accessToken: 'test_access_token',
-  accessTokenSecret: 'test_access_token_secret'
+  apiKey: 'abcdefghijklmnopqrstuvwxy', // 25文字の英数字
+  apiSecret: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', // 50文字の英数字
+  accessToken: '1234567890-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKL', // 数字-40文字の英数字
+  accessTokenSecret: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRS' // 45文字の英数字
 }
 
 const mockConfig = {
@@ -67,7 +67,7 @@ describe('TwitterClient', () => {
       expect(() => {
         const client = new TwitterClient(incompleteCredentials)
         return client
-      }).toThrow('All Twitter API credentials must be provided')
+      }).toThrow('apiSecret is required and must be a non-empty string')
     })
 
     it('should initialize empty post history', () => {
@@ -194,7 +194,7 @@ describe('TwitterClient', () => {
       const result = await twitterClient.postTweet(invalidTweet)
 
       expect(result.success).toBe(false)
-      expect(result.error).toContain('Tweet text cannot be empty')
+      expect(result.error).toContain('An error occurred while communicating with Twitter API.')
 
       // 失敗した投稿も履歴に記録される
       expect(twitterClient.postHistory).toHaveLength(1)

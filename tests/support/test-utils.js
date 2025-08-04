@@ -10,7 +10,7 @@ const net = require('net')
  * @param {number} basePort - Starting port to check
  * @returns {Promise<number>} Available port number
  */
-async function findAvailablePort(basePort = 3000) {
+async function findAvailablePort (basePort = 3000) {
   return new Promise((resolve, reject) => {
     const server = net.createServer()
     server.listen(0, () => {
@@ -27,9 +27,9 @@ async function findAvailablePort(basePort = 3000) {
  * @param {number} timeout - Timeout in milliseconds
  * @returns {Promise<boolean>} True if server is ready
  */
-async function waitForServer(url, timeout = 10000) {
+async function waitForServer (url, timeout = 10000) {
   const startTime = Date.now()
-  
+
   while (Date.now() - startTime < timeout) {
     try {
       const response = await fetch(url)
@@ -39,10 +39,10 @@ async function waitForServer(url, timeout = 10000) {
     } catch (error) {
       // Server not ready yet, continue waiting
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, 100))
   }
-  
+
   return false
 }
 
