@@ -121,6 +121,7 @@ test.describe('n8n-tweet Dashboard E2E Tests', () => {
         if (await link.isVisible()) {
           const href = await link.getAttribute('href')
           const text = await link.textContent()
+          expect(text).toBeTruthy()
 
           if (href && !href.startsWith('http') && href !== '#') {
             // 内部リンクの場合はクリックして確認
@@ -129,6 +130,7 @@ test.describe('n8n-tweet Dashboard E2E Tests', () => {
 
             // ページが変わったか確認
             const currentUrl = page.url()
+            expect(currentUrl).toBeTruthy()
           }
         }
       }

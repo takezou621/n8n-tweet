@@ -1,5 +1,55 @@
 # Terraform Variables for n8n-tweet Proxmox Deployment
 
+# Backend Configuration
+variable "state_bucket_name" {
+  description = "S3 bucket name for Terraform state storage"
+  type        = string
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", var.state_bucket_name))
+    error_message = "S3 bucket name must follow AWS naming conventions."
+  }
+}
+
+variable "state_bucket_region" {
+  description = "AWS region for the state bucket"
+  type        = string
+  default     = "us-east-1"
+  validation {
+    condition     = can(regex("^[a-z0-9-]+$", var.state_bucket_region))
+    error_message = "AWS region must be a valid region identifier."
+  }
+}
+
+variable "state_lock_table_name" {
+  description = "DynamoDB table name for state locking"
+  type        = string
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9_.-]+$", var.state_lock_table_name))
+    error_message = "DynamoDB table name must contain only alphanumeric characters, hyphens, periods, and underscores."
+  }
+}
+
+variable "state_kms_key_id" {
+  description = "KMS key ID for state encryption"
+  type        = string
+  validation {
+    condition     = can(regex("^(arn:aws:kms:|alias/|[a-f0-9-]{36}).*$", var.state_kms_key_id))
+    error_message = "KMS key ID must be a valid KMS key ARN, alias, or key ID."
+  }
+}
+
+variable "aws_profile" {
+  description = "AWS profile to use for authentication"
+  type        = string
+  default     = "default"
+}
+
+variable "validate_backend" {
+  description = "Enable backend validation (requires backend to be configured)"
+  type        = bool
+  default     = false
+}
+
 # Proxmox Provider Configuration
 variable "proxmox_api_url" {
   description = "Proxmox API URL (e.g., https://proxmox.example.com:8006/api2/json)"

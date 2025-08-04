@@ -36,12 +36,12 @@ test.describe('n8n-tweet API Tests', () => {
 
     try {
       const response = await request.get(feedsUrl)
-      
+
       if (response.ok()) {
         const feeds = await response.json()
         // 基本的な結果検証
         expect(Array.isArray(feeds)).toBe(true)
-        
+
         if (feeds.length > 0) {
           // 最初のフィードの構造確認
           const firstFeed = feeds[0]
@@ -59,105 +59,89 @@ test.describe('n8n-tweet API Tests', () => {
   })
 
   test('コンテンツフィルタリング機能テスト', async ({ request, baseURL }) => {
-
     // API経由でのフィルタリングテスト
-    const testArticles = [
-      {
-        title: 'Advanced Machine Learning Techniques',
-        description: 'Latest developments in neural networks and deep learning algorithms.',
-        category: 'research',
-        link: 'https://example.com/ml-article'
-      },
-      {
-        title: 'Weather Update',
-        description: 'Sunny weather expected tomorrow.',
-        category: 'weather',
-        link: 'https://example.com/weather'
-      }
-    ]
+    // const testArticles = [
+    //   {
+    //     title: 'Advanced Machine Learning Techniques',
+    //     description: 'Latest developments in neural networks and deep learning algorithms.',
+    //     category: 'research',
+    //     link: 'https://example.com/ml-article'
+    //   },
+    //   {
+    //     title: 'Weather Update',
+    //     description: 'Sunny weather expected tomorrow.',
+    //     category: 'weather',
+    //     link: 'https://example.com/weather'
+    //   }
+    // ]
 
-    try {
-      // メトリクス API を使ってフィルタリング状況を確認
-      const metricsUrl = `${baseURL || 'http://localhost:3000'}/api/v1/metrics`
-      const response = await request.get(metricsUrl)
-      
-      if (response.ok()) {
-        const metrics = await response.json()
-        // メトリクスデータを確認
-        expect(metrics).toBeDefined()
-      }
+    // メトリクス API を使ってフィルタリング状況を確認
+    const metricsUrl = `${baseURL || 'http://localhost:3000'}/api/v1/metrics`
+    const response = await request.get(metricsUrl)
 
-    } catch (error) {
-      throw error
+    if (response.ok()) {
+      const metrics = await response.json()
+      // メトリクスデータを確認
+      expect(metrics).toBeDefined()
     }
   })
 
   test('ツイート生成機能テスト', async ({ request, baseURL }) => {
+    // テスト記事 (現在未使用)
+    // const testArticle = {
+    //   title: 'Breakthrough in Artificial Intelligence Research',
+    //   description: 'Scientists develop new neural network architecture with 95% accuracy.',
+    //   category: 'research',
+    //   link: 'https://example.com/ai-research',
+    //   scores: { relevance: 0.8, quality: 1.0, combined: 0.9 }
+    // }
 
-    // テスト記事
-    const testArticle = {
-      title: 'Breakthrough in Artificial Intelligence Research',
-      description: 'Scientists develop new neural network architecture with 95% accuracy.',
-      category: 'research',
-      link: 'https://example.com/ai-research',
-      scores: { relevance: 0.8, quality: 1.0, combined: 0.9 }
-    }
+    // ツイート履歴 API をテスト
+    const tweetsUrl = `${baseURL || 'http://localhost:3000'}/api/v1/tweets`
+    const response = await request.get(tweetsUrl)
 
-    try {
-      // ツイート履歴 API をテスト
-      const tweetsUrl = `${baseURL || 'http://localhost:3000'}/api/v1/tweets`
-      const response = await request.get(tweetsUrl)
-      
-      if (response.ok()) {
-        const tweets = await response.json()
-        // 基本的な検証
-        expect(Array.isArray(tweets)).toBe(true)
-        
-        if (tweets.length > 0) {
-          const firstTweet = tweets[0]
-          // ツイートの基本検証
-          expect(firstTweet).toHaveProperty('text')
-          expect(firstTweet).toHaveProperty('timestamp')
-          
-        }
+    if (response.ok()) {
+      const tweets = await response.json()
+      // 基本的な検証
+      expect(Array.isArray(tweets)).toBe(true)
+
+      if (tweets.length > 0) {
+        const firstTweet = tweets[0]
+        // ツイートの基本検証
+        expect(firstTweet).toHaveProperty('text')
+        expect(firstTweet).toHaveProperty('timestamp')
       }
-    } catch (error) {
-      throw error
     }
   })
 
   test('統合ワークフロー機能テスト', async ({ request, baseURL }) => {
-    try {
-      // 統合ワークフローの状態を確認するため、各APIエンドポイントをテスト
-      const endpoints = [
-        '/api/v1/health',
-        '/api/v1/metrics',
-        '/api/v1/feeds',
-        '/api/v1/tweets'
-      ]
-      
-      const results = {}
-      
-      for (const endpoint of endpoints) {
-        try {
-          const response = await request.get(`${baseURL || 'http://localhost:3000'}${endpoint}`)
-          results[endpoint] = {
-            status: response.status(),
-            ok: response.ok()
-          }
-        } catch (error) {
-          results[endpoint] = {
-            status: 'error',
-            error: error.message
-          }
+    // 統合ワークフローの状態を確認するため、各APIエンドポイントをテスト
+    const endpoints = [
+      '/api/v1/health',
+      '/api/v1/metrics',
+      '/api/v1/feeds',
+      '/api/v1/tweets'
+    ]
+
+    const results = {}
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await request.get(`${baseURL || 'http://localhost:3000'}${endpoint}`)
+        results[endpoint] = {
+          status: response.status(),
+          ok: response.ok()
+        }
+      } catch (error) {
+        results[endpoint] = {
+          status: 'error',
+          error: error.message
         }
       }
-      
-      // 少なくとも1つのエンドポイントが動作することを確認
-      const hasWorkingEndpoint = Object.values(results).some(r => r.ok)
-      expect(hasWorkingEndpoint).toBe(true)
-    } catch (error) {
-      throw error
     }
+
+    // 少なくとも1つのエンドポイントが動作することを確認
+    const hasWorkingEndpoint = Object.values(results).some(r => r.ok)
+    expect(hasWorkingEndpoint).toBe(true)
   })
 })

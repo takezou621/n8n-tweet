@@ -125,7 +125,7 @@ describe('Real End-to-End Workflow Tests', () => {
         // Phase 1: RSS Feed取得
         logger.info('Phase 1: RSS Feed取得開始')
         const phase1Start = Date.now()
-        
+
         const arxivFeed = {
           name: 'ArXiv AI',
           url: 'http://export.arxiv.org/rss/cs.AI',
@@ -292,7 +292,6 @@ describe('Real End-to-End Workflow Tests', () => {
         expect(workflowResults.phases.rateLimitCheck.success).toBe(true)
         expect(workflowResults.phases.twitterPost.success).toBe(true)
         expect(workflowResults.phases.historySave.success).toBe(true)
-
       } catch (error) {
         workflowResults.errors.push({
           message: error.message,
@@ -319,7 +318,7 @@ describe('Real End-to-End Workflow Tests', () => {
 
     test('複数フィードの並行処理ワークフロー', async () => {
       const startTime = Date.now()
-      
+
       try {
         const realFeeds = [
           {
@@ -362,7 +361,6 @@ describe('Real End-to-End Workflow Tests', () => {
 
         // 少なくとも1つのフィードが成功することを期待
         expect(successfulFeeds).toBeGreaterThan(0)
-
       } catch (error) {
         if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
           console.warn('Skipping test due to network connectivity issues')
@@ -397,11 +395,11 @@ describe('Real End-to-End Workflow Tests', () => {
       for (const scenario of errorScenarios) {
         try {
           const feedResults = await feedParser.parseMultipleFeeds([scenario.feed])
-          
+
           // エラーが適切に処理されることを確認
           expect(feedResults).toBeDefined()
           expect(Array.isArray(feedResults)).toBe(true)
-          
+
           // エラーの場合は空の結果または適切なエラー情報が含まれる
           if (feedResults.length > 0) {
             const result = feedResults[0]
@@ -411,7 +409,6 @@ describe('Real End-to-End Workflow Tests', () => {
           }
 
           logger.info(`Error scenario handled correctly: ${scenario.name}`)
-
         } catch (error) {
           // ネットワークエラーは適切に処理される
           expect(error).toBeInstanceOf(Error)
@@ -442,7 +439,7 @@ describe('Real End-to-End Workflow Tests', () => {
 
         if (feedResults.length > 0 && feedResults[0].articles.length > 0) {
           const allArticles = feedResults.flatMap(result => result.articles)
-          
+
           // フィルタリング性能測定
           const filterStartTime = Date.now()
           const filteredArticles = await contentFilter.filterRelevantContent(allArticles)
@@ -451,13 +448,13 @@ describe('Real End-to-End Workflow Tests', () => {
           // ツイート生成性能測定（最初の5記事）
           const tweetsToGenerate = filteredArticles.slice(0, 5)
           const tweetStartTime = Date.now()
-          
+
           const tweets = []
           for (const article of tweetsToGenerate) {
             const tweet = await tweetGenerator.generateTweet(article)
             if (tweet) tweets.push(tweet)
           }
-          
+
           const tweetTime = Date.now() - tweetStartTime
 
           const performanceMetrics = {
@@ -484,7 +481,6 @@ describe('Real End-to-End Workflow Tests', () => {
           expect(performanceMetrics.filtering.duration).toBeLessThan(10000) // 10秒以内
           expect(performanceMetrics.tweetGeneration.duration).toBeLessThan(15000) // 15秒以内
         }
-
       } catch (error) {
         if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
           console.warn('Skipping performance test due to network connectivity issues')
@@ -506,20 +502,20 @@ describe('Real End-to-End Workflow Tests', () => {
         }]
 
         const feedResults = await feedParser.parseMultipleFeeds(feeds)
-        
+
         if (feedResults.length > 0 && feedResults[0].articles.length > 0) {
           const articles = feedResults[0].articles.slice(0, 3) // 最初の3記事をテスト
-          
+
           for (const article of articles) {
             const tweet = await tweetGenerator.generateTweet(article)
-            
+
             if (tweet) {
               // 品質検証
               expect(tweet.content.length).toBeLessThanOrEqual(280)
               expect(tweet.content.length).toBeGreaterThan(50) // 最低限の内容
               expect(tweet.metadata.engagementScore).toBeGreaterThanOrEqual(0)
               expect(tweet.metadata.engagementScore).toBeLessThanOrEqual(1)
-              
+
               // ハッシュタグ検証
               if (tweet.metadata.hashtags) {
                 expect(tweet.metadata.hashtags.length).toBeLessThanOrEqual(3)
@@ -542,7 +538,6 @@ describe('Real End-to-End Workflow Tests', () => {
             }
           }
         }
-
       } catch (error) {
         if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
           console.warn('Skipping quality test due to network connectivity issues')

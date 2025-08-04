@@ -3,8 +3,9 @@
  * セキュアな入力値検証、サニタイズ、型変換機能を提供
  */
 
-const crypto = require('crypto')
-const url = require('url')
+// Crypto and URL modules - imported for potential future use
+// const crypto = require('crypto')
+// const url = require('url')
 const validator = require('validator')
 
 /**
@@ -205,7 +206,7 @@ class InputValidator {
           result.warnings.push(...validationResult.warnings)
         }
 
-        if (validationResult.hasOwnProperty('sanitized')) {
+        if (Object.prototype.hasOwnProperty.call(validationResult, 'sanitized')) {
           result.sanitized[key] = validationResult.sanitized
         }
       }
@@ -356,7 +357,8 @@ class InputValidator {
           result.errors.push(`${fieldName} contains potentially malicious content`)
         } else {
           sanitizedValue = xssResult.sanitized
-          result.warnings.push(`${fieldName} contained potentially unsafe content that was sanitized`)
+          const message = `${fieldName} contained potentially unsafe content that was sanitized`
+          result.warnings.push(message)
         }
       }
     }
@@ -511,12 +513,14 @@ class InputValidator {
       // プロトコルチェック
       if (rule.protocols && !rule.protocols.includes(parsedUrl.protocol.slice(0, -1))) {
         stringResult.isValid = false
-        stringResult.errors.push(`${fieldName} must use one of these protocols: ${rule.protocols.join(', ')}`)
+        const protocols = rule.protocols.join(', ')
+        stringResult.errors.push(`${fieldName} must use one of these protocols: ${protocols}`)
         return stringResult
       }
 
       // ローカルホストチェック
-      if (!rule.allowLocalhost && (parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1')) {
+      const isLocalhost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1'
+      if (!rule.allowLocalhost && isLocalhost) {
         stringResult.isValid = false
         stringResult.errors.push(`${fieldName} cannot reference localhost`)
         return stringResult
@@ -530,7 +534,8 @@ class InputValidator {
       }
 
       // ポートチェック
-      if (rule.allowedPorts && parsedUrl.port && !rule.allowedPorts.includes(parseInt(parsedUrl.port))) {
+      const port = parsedUrl.port ? parseInt(parsedUrl.port) : null
+      if (rule.allowedPorts && port && !rule.allowedPorts.includes(port)) {
         stringResult.isValid = false
         stringResult.errors.push(`${fieldName} uses an unauthorized port`)
         return stringResult
@@ -649,7 +654,8 @@ class InputValidator {
     // プロパティの検証
     if (rule.properties) {
       for (const [propName, propRule] of Object.entries(rule.properties)) {
-        const propResult = await this.validateField(`${fieldName}.${propName}`, value[propName], propRule)
+        const fullPropName = `${fieldName}.${propName}`
+        const propResult = await this.validateField(fullPropName, value[propName], propRule)
         if (!propResult.isValid) {
           result.isValid = false
           result.errors.push(...propResult.errors)
@@ -685,6 +691,8 @@ class InputValidator {
 
     // 制御文字の除去
     if (rule.removeControlChars) {
+      // Remove control characters (0x00-0x1F and 0x7F)
+      // eslint-disable-next-line no-control-regex
       sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, '')
     }
 

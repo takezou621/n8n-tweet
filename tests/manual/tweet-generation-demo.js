@@ -6,7 +6,7 @@
 const TweetGenerator = require('../../src/generators/tweet-generator')
 const config = require('../../config/rss-feeds.json')
 
-async function runDemo() {
+async function runDemo () {
   console.log('='.repeat(80))
   console.log('           ツイート生成機能 動作確認デモ')
   console.log('='.repeat(80))
@@ -87,23 +87,23 @@ async function runDemo() {
   for (const [index, testCase] of testCases.entries()) {
     console.log(`\n${index + 1}. ${testCase.name}`)
     console.log('-'.repeat(50))
-    
+
     const article = testCase.article
     console.log(`元タイトル (${article.title.length}文字):`)
     console.log(`  "${article.title}"`)
-    
+
     if (article.description) {
       console.log(`元説明文 (${article.description.length}文字):`)
       console.log(`  "${article.description}"`)
     }
-    
+
     if (article.link) {
       console.log(`元URL (${article.link.length}文字):`)
       console.log(`  ${article.link}`)
     }
 
     const tweet = await generator.generateTweet(article, config.categories)
-    
+
     const withinLimit = tweet.content.length <= 280
     const isOptimized = tweet.content.includes('...')
     const hasUrl = tweet.content.includes('http')
@@ -111,8 +111,8 @@ async function runDemo() {
 
     console.log(`\n生成ツイート (${tweet.content.length}/280文字):`)
     console.log(`  "${tweet.content}"`)
-    
-    console.log(`\n検証結果:`)
+
+    console.log('\n検証結果:')
     console.log(`  ✓ 280文字制限: ${withinLimit ? '遵守' : '違反'} (${tweet.content.length}文字)`)
     console.log(`  ✓ 最適化: ${isOptimized ? 'あり' : 'なし'}`)
     console.log(`  ✓ URL含有: ${hasUrl ? 'あり' : 'なし'}`)
@@ -121,7 +121,7 @@ async function runDemo() {
 
     if (!withinLimit) {
       allWithinLimit = false
-      console.log(`  ❌ エラー: 280文字を超過しています！`)
+      console.log('  ❌ エラー: 280文字を超過しています！')
     }
 
     results.push({
@@ -140,7 +140,7 @@ async function runDemo() {
   console.log('\n' + '='.repeat(80))
   console.log('                     総合統計')
   console.log('='.repeat(80))
-  
+
   const totalTests = results.length
   const passedTests = results.filter(r => r.withinLimit).length
   const avgLength = Math.round(results.reduce((sum, r) => sum + r.tweetLength, 0) / totalTests)

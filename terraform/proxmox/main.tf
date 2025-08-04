@@ -17,28 +17,62 @@ locals {
   container_name = "${var.project_name}-${var.environment}"
 }
 
+# SSH Key Validation before any operations
+resource "null_resource" "ssh_key_validation" {
+  triggers = {
+    public_key_path  = var.ssh_public_key_path
+    private_key_path = var.ssh_private_key_path
+    always_check     = timestamp()
+  }
+  
+  provisioner "local-exec" {
+    command = "${path.module}/../../scripts/terraform/validate-ssh-keys.sh"
+    environment = {
+      TF_VAR_ssh_public_key_path  = var.ssh_public_key_path
+      TF_VAR_ssh_private_key_path = var.ssh_private_key_path
+    }
+  }
+}
+
 # Random password generation
 resource "random_password" "db_password" {
   length  = 32
   special = true
+  
+  depends_on = [null_resource.ssh_key_validation]
 }
 
 resource "random_password" "redis_password" {
   length  = 32
   special = true
+  
+  depends_on = [null_resource.ssh_key_validation]
 }
 
 resource "random_password" "n8n_admin_password" {
   length  = 16
   special = false
+  
+  depends_on = [null_resource.ssh_key_validation]
 }
 
 resource "random_id" "encryption_key" {
   byte_length = 32
+  
+  depends_on = [null_resource.ssh_key_validation]
 }
 
 resource "random_id" "jwt_secret" {
   byte_length = 32
+  
+  depends_on = [null_resource.ssh_key_validation]
+}
+
+resource "random_password" "container_root_password" {
+  length  = 32
+  special = true
+  
+  depends_on = [null_resource.ssh_key_validation]
 }
 
 # LXC Container for n8n-tweet Production
@@ -46,7 +80,7 @@ resource "proxmox_lxc" "n8n_tweet_production" {
   target_node     = var.proxmox_target_node
   hostname        = var.container_hostname
   ostemplate      = var.container_template
-  password        = var.container_root_password
+  password        = random_password.container_root_password.result
   unprivileged    = true
   start           = true
   onboot          = true
@@ -114,66 +148,185 @@ resource "proxmox_lxc" "n8n_tweet_production" {
     timeout     = "5m"
   }
   
-  # Initial system setup
+  # Initial system setup with security hardening
   provisioner "remote-exec" {
     inline = [
+      # System updates
       "apt update && apt upgrade -y",
-      "apt install -y curl wget git",
+      "apt install -y curl wget git sudo ufw fail2ban",
+      
+      # Create non-root user for application
+      "useradd -m -s /bin/bash -G sudo n8n-user",
+      "echo 'n8n-user ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/n8n-user",
+      
+      # Setup SSH keys for non-root user
+      "mkdir -p /home/n8n-user/.ssh",
+      "cp /root/.ssh/authorized_keys /home/n8n-user/.ssh/authorized_keys",
+      "chown -R n8n-user:n8n-user /home/n8n-user/.ssh",
+      "chmod 700 /home/n8n-user/.ssh",
+      "chmod 600 /home/n8n-user/.ssh/authorized_keys",
+      
+      # Create application directory with proper ownership
       "mkdir -p /opt/n8n-tweet",
-      "echo 'Container provisioned successfully' > /opt/n8n-tweet/provisioned.txt"
+      "chown -R n8n-user:n8n-user /opt/n8n-tweet",
+      
+      # Disable root SSH login
+      "sed -i 's/#PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config",
+      "sed -i 's/PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config",
+      
+      # Configure SSH security
+      "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config",
+      "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config",
+      "echo 'Protocol 2' >> /etc/ssh/sshd_config",
+      "echo 'AllowUsers n8n-user' >> /etc/ssh/sshd_config",
+      
+      # Configure firewall
+      "ufw --force enable",
+      "ufw default deny incoming",
+      "ufw default allow outgoing",
+      "ufw allow ssh",
+      "ufw allow 80/tcp",
+      "ufw allow 443/tcp",
+      
+      # Configure fail2ban
+      "systemctl enable fail2ban",
+      "systemctl start fail2ban",
+      
+      # Restart SSH service
+      "systemctl restart sshd",
+      
+      "echo 'Container provisioned successfully with security hardening' > /opt/n8n-tweet/provisioned.txt"
     ]
   }
   
-  # Copy setup scripts
+  # Copy setup scripts using non-root user
   provisioner "file" {
     source      = "${path.module}/../../scripts/deployment/setup-production.sh"
     destination = "/opt/n8n-tweet/setup-production.sh"
+    
+    connection {
+      type        = "ssh"
+      host        = split("/", self.network[0].ip)[0]
+      user        = "n8n-user"
+      private_key = file(var.ssh_private_key_path)
+      timeout     = "5m"
+    }
   }
   
   provisioner "file" {
     source      = "${path.module}/../../scripts/deployment/quick-docker-setup.sh"
     destination = "/opt/n8n-tweet/quick-docker-setup.sh"
+    
+    connection {
+      type        = "ssh"
+      host        = split("/", self.network[0].ip)[0]
+      user        = "n8n-user"
+      private_key = file(var.ssh_private_key_path)
+      timeout     = "5m"
+    }
   }
   
   # Copy only necessary application files (exclude sensitive files)
   provisioner "file" {
     source      = "${path.module}/../../docker-compose.production.yml"
     destination = "/opt/n8n-tweet/docker-compose.yml"
+    
+    connection {
+      type        = "ssh"
+      host        = split("/", self.network[0].ip)[0]
+      user        = "n8n-user"
+      private_key = file(var.ssh_private_key_path)
+      timeout     = "5m"
+    }
   }
   
   provisioner "file" {
     source      = "${path.module}/../../.env.production.template"
     destination = "/opt/n8n-tweet/.env.template"
+    
+    connection {
+      type        = "ssh"
+      host        = split("/", self.network[0].ip)[0]
+      user        = "n8n-user"
+      private_key = file(var.ssh_private_key_path)
+      timeout     = "5m"
+    }
   }
   
   provisioner "file" {
     source      = "${path.module}/../../src/"
     destination = "/opt/n8n-tweet/src/"
+    
+    connection {
+      type        = "ssh"
+      host        = split("/", self.network[0].ip)[0]
+      user        = "n8n-user"
+      private_key = file(var.ssh_private_key_path)
+      timeout     = "5m"
+    }
   }
   
   provisioner "file" {
     source      = "${path.module}/../../config/"
     destination = "/opt/n8n-tweet/config/"
+    
+    connection {
+      type        = "ssh"
+      host        = split("/", self.network[0].ip)[0]
+      user        = "n8n-user"
+      private_key = file(var.ssh_private_key_path)
+      timeout     = "5m"
+    }
   }
   
-  # Execute setup script
+  # Create secure credential files
+  provisioner "file" {
+    content = templatefile("${path.module}/templates/secure-env.tpl", {
+      domain               = var.domain
+      n8n_subdomain        = var.n8n_subdomain
+      dashboard_subdomain  = var.dashboard_subdomain
+      db_password          = random_password.db_password.result
+      redis_password       = random_password.redis_password.result
+      encryption_key       = random_id.encryption_key.hex
+      jwt_secret          = random_id.jwt_secret.b64_std
+    })
+    destination = "/tmp/secure-credentials.env"
+    
+    connection {
+      type        = "ssh"
+      host        = split("/", self.network[0].ip)[0]
+      user        = "n8n-user"
+      private_key = file(var.ssh_private_key_path)
+      timeout     = "5m"
+    }
+  }
+
+  # Execute setup script as non-root user with secure credential handling
   provisioner "remote-exec" {
     inline = [
       "chmod +x /opt/n8n-tweet/*.sh",
-      "cd /opt/n8n-tweet/app",
       
-      # Set environment variables for setup
-      "export DOMAIN=${var.domain}",
-      "export N8N_SUBDOMAIN=${var.n8n_subdomain}",
-      "export DASHBOARD_SUBDOMAIN=${var.dashboard_subdomain}",
-      "export DB_PASSWORD='${random_password.db_password.result}'",
-      "export REDIS_PASSWORD='${random_password.redis_password.result}'",
-      "export ENCRYPTION_KEY='${random_id.encryption_key.hex}'",
-      "export JWT_SECRET='${random_id.jwt_secret.b64_std}'",
+      # Secure the credential file
+      "chmod 600 /tmp/secure-credentials.env",
       
-      # Run setup based on deployment method
-      var.deployment_method == "docker" ? "/opt/n8n-tweet/quick-docker-setup.sh" : "/opt/n8n-tweet/setup-production.sh"
+      # Source credentials and run setup
+      "cd /opt/n8n-tweet",
+      "source /tmp/secure-credentials.env",
+      
+      # Run setup based on deployment method (using sudo for privileged operations)
+      var.deployment_method == "docker" ? "sudo -E /opt/n8n-tweet/quick-docker-setup.sh" : "sudo -E /opt/n8n-tweet/setup-production.sh",
+      
+      # Securely remove credential file
+      "shred -vfz -n 3 /tmp/secure-credentials.env || rm -f /tmp/secure-credentials.env"
     ]
+    
+    connection {
+      type        = "ssh"
+      host        = split("/", self.network[0].ip)[0]
+      user        = "n8n-user"
+      private_key = file(var.ssh_private_key_path)
+      timeout     = "5m"
+    }
   }
 }
 
@@ -214,6 +367,12 @@ output "n8n_admin_password" {
   sensitive   = true
 }
 
+output "container_root_password" {
+  description = "Generated container root password"
+  value       = random_password.container_root_password.result
+  sensitive   = true
+}
+
 output "encryption_key" {
   description = "Generated encryption key"
   value       = random_id.encryption_key.hex
@@ -221,15 +380,20 @@ output "encryption_key" {
 }
 
 output "ssh_connection" {
-  description = "SSH connection command"
-  value       = "ssh root@${proxmox_lxc.n8n_tweet_production.network[0].ip}"
+  description = "SSH connection command (non-root user)"
+  value       = "ssh n8n-user@${split("/", proxmox_lxc.n8n_tweet_production.network[0].ip)[0]}"
+}
+
+output "ssh_connection_root" {
+  description = "SSH connection command (root user - disabled for security)"
+  value       = "Root SSH access has been disabled for security. Use: ssh n8n-user@${split("/", proxmox_lxc.n8n_tweet_production.network[0].ip)[0]}"
 }
 
 # Create local file with connection details
 resource "local_file" "connection_details" {
   filename = "${path.module}/connection-details.txt"
   content = templatefile("${path.module}/templates/connection-details.tpl", {
-    container_ip          = proxmox_lxc.n8n_tweet_production.network[0].ip
+    container_ip          = split("/", proxmox_lxc.n8n_tweet_production.network[0].ip)[0]
     container_id         = proxmox_lxc.n8n_tweet_production.vmid
     domain               = var.domain
     n8n_subdomain        = var.n8n_subdomain

@@ -97,7 +97,7 @@ describe('n8n-tweet User Scenarios Tests', () => {
 
       // メモリ使用量
       const memUsage = process.memoryUsage()
-      console.log(`Memory Usage:`)
+      console.log('Memory Usage:')
       console.log(`- Heap Used: ${(memUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`)
       console.log(`- RSS: ${(memUsage.rss / 1024 / 1024).toFixed(2)} MB`)
 
@@ -160,7 +160,7 @@ describe('n8n-tweet User Scenarios Tests', () => {
         ['ai', 'research', 'technology']
       )
 
-      console.log(`\\nFiltering Results:`)
+      console.log('\\nFiltering Results:')
       console.log(`- Input Articles: ${diverseArticles.length}`)
       console.log(`- AI-Relevant Articles: ${filteredArticles.length}`)
       console.log(`- Filter Rate: ${((filteredArticles.length / diverseArticles.length) * 100).toFixed(1)}%`)

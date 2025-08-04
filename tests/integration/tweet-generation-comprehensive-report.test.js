@@ -8,7 +8,7 @@ const config = require('../../config/rss-feeds.json')
 
 describe('Tweet Generation Comprehensive Report', () => {
   let generator
-  let testResults = []
+  const testResults = []
 
   beforeAll(() => {
     generator = new TweetGenerator({
@@ -105,11 +105,11 @@ describe('Tweet Generation Comprehensive Report', () => {
   describe('1. 280文字制限の遵守確認', () => {
     test('全記事タイプでの280文字制限テスト', async () => {
       console.log('\n=== 280文字制限遵守テスト開始 ===')
-      
+
       const results = []
       for (const [index, article] of global.comprehensiveTestData.entries()) {
         const tweet = await generator.generateTweet(article, config.categories)
-        
+
         const result = {
           index: index + 1,
           feedName: article.feedName,
@@ -128,10 +128,10 @@ describe('Tweet Generation Comprehensive Report', () => {
           isOptimized: tweet.content.includes('...'),
           contentQuality: tweet.stats.combinedScore || 0
         }
-        
+
         results.push(result)
         testResults.push(result)
-        
+
         // 280文字制限のアサーション
         expect(tweet.content.length).toBeLessThanOrEqual(280)
       }
@@ -180,12 +180,12 @@ describe('Tweet Generation Comprehensive Report', () => {
   describe('2. カテゴリ別分析', () => {
     test('カテゴリ別のツイート生成パフォーマンス', async () => {
       console.log('\n=== カテゴリ別分析 ===')
-      
+
       const categoryStats = {}
-      
+
       for (const article of global.comprehensiveTestData) {
         const category = article.category || 'unknown'
-        
+
         if (!categoryStats[category]) {
           categoryStats[category] = {
             count: 0,
@@ -196,9 +196,9 @@ describe('Tweet Generation Comprehensive Report', () => {
             samples: []
           }
         }
-        
+
         const tweet = await generator.generateTweet(article, config.categories)
-        
+
         categoryStats[category].count++
         categoryStats[category].lengths.push(tweet.content.length)
         categoryStats[category].engagements.push(tweet.metadata.engagementScore)
@@ -220,7 +220,7 @@ describe('Tweet Generation Comprehensive Report', () => {
         const maxLength = Math.max(...stats.lengths)
         const minLength = Math.min(...stats.lengths)
         const avgEngagement = Math.round(stats.engagements.reduce((sum, e) => sum + e, 0) / stats.engagements.length * 100) / 100
-        
+
         console.log(`\n${category.toUpperCase()} カテゴリ:`)
         console.log(`  記事数: ${stats.count}`)
         console.log(`  平均長: ${avgLength} 文字`)
@@ -228,7 +228,7 @@ describe('Tweet Generation Comprehensive Report', () => {
         console.log(`  最適化率: ${Math.round(stats.optimizedCount / stats.count * 100)}%`)
         console.log(`  URL付き: ${stats.urlCount}/${stats.count}`)
         console.log(`  平均エンゲージメント: ${avgEngagement}`)
-        console.log(`  サンプル:`)
+        console.log('  サンプル:')
         stats.samples.slice(0, 2).forEach((sample, index) => {
           console.log(`    ${index + 1}. ${sample.title} (${sample.length}文字)`)
         })
@@ -242,22 +242,22 @@ describe('Tweet Generation Comprehensive Report', () => {
   describe('3. URL長とハッシュタグ処理検証', () => {
     test('URL長予約機能とハッシュタグ処理の検証', async () => {
       console.log('\n=== URL長とハッシュタグ処理検証 ===')
-      
+
       const urlTestCases = global.comprehensiveTestData.filter(item => item.link)
-      
+
       for (const article of urlTestCases) {
         const tweet = await generator.generateTweet(article, config.categories)
-        
+
         console.log(`\n記事: ${article.title.substring(0, 80)}...`)
         console.log(`元URL長: ${article.link.length} 文字`)
         console.log(`予約URL長: ${generator.config.reserveUrlLength} 文字`)
         console.log(`ハッシュタグ数: ${tweet.metadata.hashtags.length}`)
         console.log(`最終ツイート長: ${tweet.content.length}/280 文字`)
         console.log(`URL含有: ${tweet.content.includes('http') ? 'Yes' : 'No'}`)
-        
+
         // URL含有ツイートの文字数チェック
         expect(tweet.content.length).toBeLessThanOrEqual(280)
-        
+
         if (tweet.content.includes('http')) {
           // URLが含まれている場合、予約長が適切に機能しているかチェック
           expect(tweet.content).toContain('http')
@@ -269,12 +269,12 @@ describe('Tweet Generation Comprehensive Report', () => {
   describe('4. 言語別処理検証', () => {
     test('日本語・英語記事の適切な処理', async () => {
       console.log('\n=== 言語別処理検証 ===')
-      
-      const japaneseArticle = global.comprehensiveTestData.find(item => 
+
+      const japaneseArticle = global.comprehensiveTestData.find(item =>
         /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(item.title)
       )
-      
-      const englishArticles = global.comprehensiveTestData.filter(item => 
+
+      const englishArticles = global.comprehensiveTestData.filter(item =>
         !/[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(item.title)
       )
 
@@ -284,7 +284,7 @@ describe('Tweet Generation Comprehensive Report', () => {
         console.log(`  タイトル: ${japaneseArticle.title}`)
         console.log(`  ツイート: ${japaneseTweet.content}`)
         console.log(`  文字数: ${japaneseTweet.content.length}/280`)
-        
+
         expect(japaneseTweet.content.length).toBeLessThanOrEqual(280)
       }
 
@@ -294,7 +294,7 @@ describe('Tweet Generation Comprehensive Report', () => {
         console.log(`  タイトル: ${article.title.substring(0, 60)}...`)
         console.log(`  ツイート: ${tweet.content.substring(0, 100)}...`)
         console.log(`  文字数: ${tweet.content.length}/280`)
-        
+
         expect(tweet.content.length).toBeLessThanOrEqual(280)
       }
     })
@@ -303,12 +303,12 @@ describe('Tweet Generation Comprehensive Report', () => {
   describe('5. エンゲージメントスコア分析', () => {
     test('エンゲージメントスコアの妥当性検証', async () => {
       console.log('\n=== エンゲージメントスコア分析 ===')
-      
+
       const engagementAnalysis = []
-      
+
       for (const article of global.comprehensiveTestData) {
         const tweet = await generator.generateTweet(article, config.categories)
-        
+
         engagementAnalysis.push({
           feedName: article.feedName,
           category: article.category,
@@ -355,9 +355,9 @@ describe('Tweet Generation Comprehensive Report', () => {
   describe('6. 修正前後の比較レポート', () => {
     test('280文字制限問題の解決確認', async () => {
       console.log('\n=== 修正前後の比較レポート ===')
-      
+
       // 特に問題が発生しやすい長い記事でテスト
-      const problematicArticles = global.comprehensiveTestData.filter(article => 
+      const problematicArticles = global.comprehensiveTestData.filter(article =>
         article.title.length > 100 || (article.description && article.description.length > 200)
       )
 
@@ -365,7 +365,7 @@ describe('Tweet Generation Comprehensive Report', () => {
 
       for (const article of problematicArticles) {
         const tweet = await generator.generateTweet(article, config.categories)
-        
+
         console.log(`\n記事: ${article.title.substring(0, 80)}...`)
         console.log(`元タイトル長: ${article.title.length} 文字`)
         console.log(`元説明文長: ${(article.description || '').length} 文字`)
@@ -373,7 +373,7 @@ describe('Tweet Generation Comprehensive Report', () => {
         console.log(`生成ツイート長: ${tweet.content.length}/280 文字`)
         console.log(`制限内: ${tweet.content.length <= 280 ? '✓' : '✗'}`)
         console.log(`最適化: ${tweet.content.includes('...') ? 'Yes' : 'No'}`)
-        
+
         // 修正後は全て280文字以下になっているはず
         expect(tweet.content.length).toBeLessThanOrEqual(280)
       }

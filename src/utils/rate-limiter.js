@@ -248,7 +248,8 @@ class RateLimiter {
    * @param {string} type リクエストタイプ
    */
   recordRequest (key, success = true, type = 'general') {
-    const now = Date.now()
+    // Note: 'type' parameter is currently unused but kept for future extensibility
+    // const now = Date.now() // Reserved for future timestamp functionality
     this.resetExpiredCounters()
 
     // 一般的な使用量を記録

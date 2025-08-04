@@ -5,6 +5,17 @@ yarn-debug.log*
 yarn-error.log*
 yarn.lock
 
+# Terraform credentials and sensitive files
+.env.terraform
+.env.terraform.backup
+terraform/proxmox/terraform.tfvars
+terraform/proxmox/*.tfstate
+terraform/proxmox/*.tfstate.backup
+terraform/proxmox/.terraform/
+terraform/proxmox/.terraform.lock.hcl
+terraform/proxmox/connection-details.txt
+terraform/proxmox/.kms-key-id
+
 # Runtime data
 pids
 *.pid

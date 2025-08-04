@@ -3,8 +3,9 @@
 
 # Proxmox Provider Configuration
 proxmox_api_url          = "https://your-proxmox-server.example.com:8006/api2/json"
-proxmox_api_token_id     = "your-username@pam!your-token-id"
-proxmox_api_token_secret = "your-api-token-secret"
+# Note: API credentials should be provided via environment variables:
+# export TF_VAR_proxmox_api_token_id="your-username@pam!your-token-id"
+# export TF_VAR_proxmox_api_token_secret="your-api-token-secret"
 
 # Container Resource Configuration
 container_cores   = 2     # CPU cores (1-8)

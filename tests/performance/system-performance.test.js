@@ -140,7 +140,7 @@ describe('n8n-tweet Performance Tests', () => {
     // テスト記事
     const testArticles = Array.from({ length: 20 }, (_, i) => ({
       title: `AI Research Breakthrough ${i}: New Neural Network Architecture Achieves State-of-the-Art Results`,
-      description: `Scientists have developed a revolutionary neural network architecture that significantly improves performance on various AI tasks. The new model demonstrates remarkable efficiency and accuracy.`,
+      description: 'Scientists have developed a revolutionary neural network architecture that significantly improves performance on various AI tasks. The new model demonstrates remarkable efficiency and accuracy.',
       link: `https://example.com/ai-research-${i}`,
       category: 'research',
       scores: { relevance: 0.8 + (i % 3) * 0.05, quality: 0.9, combined: 0.85 }

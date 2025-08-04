@@ -4,14 +4,7 @@ terraform {
   required_version = ">= 1.5.0"
   
   # Remote State Backend Configuration
-  # Uncomment and configure for production use
-  # backend "s3" {
-  #   bucket         = "your-terraform-state-bucket"
-  #   key            = "proxmox/n8n-tweet/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   encrypt        = true
-  #   dynamodb_table = "terraform-state-lock"
-  # }
+  # Configure via backend.tf file for production use
 
   required_providers {
     proxmox = {
@@ -32,6 +25,11 @@ terraform {
     null = {
       source  = "hashicorp/null"
       version = "~> 3.2.0"
+    }
+    
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
     }
   }
 }
@@ -54,5 +52,20 @@ provider "proxmox" {
   pm_log_levels = {
     _default    = "debug"
     _capturelog = ""
+  }
+}
+
+# AWS Provider Configuration (for backend)
+provider "aws" {
+  region  = var.state_bucket_region
+  profile = var.aws_profile
+  
+  # Default tags for all AWS resources
+  default_tags {
+    tags = {
+      Project     = "n8n-tweet"
+      ManagedBy   = "terraform"
+      Environment = var.environment
+    }
   }
 }

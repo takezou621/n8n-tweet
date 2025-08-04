@@ -2,7 +2,18 @@
   "permissions": {
     "allow": [
       "Bash(git pull:*)",
-      "Bash(LEFTHOOK=0 git push -u origin feat/production-deployment-fixed)"
+      "Bash(LEFTHOOK=0 git push -u origin feat/production-deployment-fixed)",
+      "Bash(NODE_ENV=test npm test -- --testNamePattern=\"TwitterClient\" --verbose)",
+      "Bash(npm audit:*)",
+      "Bash(npm update:*)",
+      "Bash(npm install:*)",
+      "Bash(chmod:*)",
+      "Bash(mkdir:*)",
+      "Bash(gh api:*)",
+      "Bash(npm run test:coverage:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run test:integration:*)"
     ],
     "deny": []
   }
