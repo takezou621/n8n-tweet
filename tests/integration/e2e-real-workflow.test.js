@@ -76,12 +76,11 @@ describe('Real End-to-End Workflow Tests', () => {
 
     // Twitter クライアントはドライランモードで初期化
     twitterClient = new TwitterClient({
-      credentials: {
-        apiKey: 'test-key',
-        apiSecret: 'test-secret',
-        accessToken: 'test-token',
-        accessTokenSecret: 'test-token-secret'
-      },
+      apiKey: 'test-key',
+      apiSecret: 'test-secret',
+      accessToken: 'test-token',
+      accessTokenSecret: 'test-token-secret'
+    }, {
       dryRun: true,
       logger
     })
@@ -108,7 +107,7 @@ describe('Real End-to-End Workflow Tests', () => {
 
   beforeEach(() => {
     // レート制限リセット
-    rateLimiter.reset()
+    rateLimiter.resetAllLimits()
     jest.clearAllMocks()
   })
 
@@ -266,16 +265,17 @@ describe('Real End-to-End Workflow Tests', () => {
         const phase7Start = Date.now()
 
         if (postResult?.success) {
-          await tweetHistory.saveTweet({
+          await tweetHistory.addTweet({
+            text: tweet.content,
             url: articleUrl,
             title: selectedArticle.title,
-            tweetText: tweet.content,
             hashtags: tweet.metadata.hashtags || [],
-            postedAt: new Date(),
-            tweetId: postResult.tweetId
+            createdAt: new Date().toISOString(),
+            id: postResult.tweetId || 'test-tweet-id',
+            status: 'success'
           })
 
-          rateLimiter.recordTweet()
+          await rateLimiter.recordRequest('tweets', true)
         }
 
         workflowResults.phases.historySave = {
@@ -418,10 +418,11 @@ describe('Real End-to-End Workflow Tests', () => {
       ]
 
       for (const scenario of errorScenarios) {
-        let feedResults = null
         let errorCaught = null
+        let feedResults = null
 
         try {
+          feedResults = await feedParser.parseMultipleFeeds([scenario.feed])
         } catch (error) {
           errorCaught = error
         }
@@ -471,7 +472,7 @@ describe('Real End-to-End Workflow Tests', () => {
         const parseTime = Date.now() - startTime
 
         // パフォーマンスメトリクスの初期化
-        let performanceMetrics = {
+        const performanceMetrics = {
           parsing: { duration: parseTime, articlesPerSecond: 0 },
           filtering: { duration: 0, articlesPerSecond: 0, filterRatio: 0 },
           tweetGeneration: { duration: 0, tweetsPerSecond: 0, averageTweetLength: 0 }
@@ -497,7 +498,7 @@ describe('Real End-to-End Workflow Tests', () => {
 
           const tweetTime = Date.now() - tweetStartTime
 
-          performanceMetrics = {
+          const updatedMetrics = {
             parsing: {
               duration: parseTime,
               articlesPerSecond: Math.round(allArticles.length / (parseTime / 1000))
@@ -515,6 +516,9 @@ describe('Real End-to-End Workflow Tests', () => {
                 : 0
             }
           }
+
+          // メトリクスのログ出力
+          console.log('Performance Metrics:', updatedMetrics)
         }
       } catch (error) {
         if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
@@ -545,6 +549,10 @@ describe('Real End-to-End Workflow Tests', () => {
             const tweet = await tweetGenerator.generateTweet(article)
 
             if (tweet) {
+              // Tweet generation successful
+            }
+          }
+        }
       } catch (error) {
         if (error.message.includes('ENOTFOUND') || error.message.includes('ECONNREFUSED')) {
           console.warn('Skipping quality test due to network connectivity issues')

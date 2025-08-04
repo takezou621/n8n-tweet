@@ -25,8 +25,13 @@ class TwitterClient {
       ...config
     }
 
-    // 認証情報の検証
-    this.validateCredentials()
+    // ドライランモードの設定
+    this.dryRun = config.dryRun || false
+
+    // ドライランモードでない場合のみ認証情報の検証
+    if (!this.dryRun) {
+      this.validateCredentials()
+    }
 
     this.logger = createLogger('twitter-client', { enableConsole: false })
     this.rateLimiter = new RateLimiter(this.config.rateLimit)
@@ -38,7 +43,7 @@ class TwitterClient {
       failedTweets: 0
     }
 
-    this.logger.info('TwitterClient initialized successfully')
+    this.logger.info('TwitterClient initialized successfully', { dryRun: this.dryRun })
   }
 
   validateCredentials () {
@@ -62,6 +67,44 @@ class TwitterClient {
             type: 'validation',
             message: validation.errors[0]
           }
+        }
+      }
+
+      // ドライランモードの場合
+      if (this.dryRun) {
+        this.logger.info('Dry run mode: Skipping actual tweet post', {
+          text: text.substring(0, 50) + '...'
+        })
+
+        // レート制限チェック（ドライランでも実行）
+        const limitCheck = await this.rateLimiter.checkLimit('tweets')
+        if (!limitCheck.allowed) {
+          return {
+            success: false,
+            error: {
+              type: 'rate_limit',
+              message: 'Rate limit exceeded for tweets'
+            }
+          }
+        }
+
+        // モックレスポンスを返す
+        const mockResponse = {
+          data: {
+            id: 'mock-tweet-id-' + Date.now(),
+            text,
+            created_at: new Date().toISOString()
+          }
+        }
+
+        await this.rateLimiter.recordRequest('tweets', true)
+        this.stats.totalTweets++
+        this.stats.successfulTweets++
+
+        return {
+          success: true,
+          data: mockResponse.data,
+          dryRun: true
         }
       }
 

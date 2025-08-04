@@ -45,15 +45,16 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
   afterAll(async () => {
     // テスト結果レポートの生成
+    const reportPath = path.join(__dirname, '../../test-reports/comprehensive-e2e-report.md')
 
-      logger.info('包括的E2Eテスト完了', {
-        timestamp: new Date().toISOString(),
-        testResults,
-        reportPath
-      })
+    logger.info('包括的E2Eテスト完了', {
+      timestamp: new Date().toISOString(),
+      testResults,
+      reportPath
+    })
 
-      // クリーンアップ
-      fs.rmSync(testDataDir, { recursive: true, force: true })
+    // クリーンアップ
+    fs.rmSync(testDataDir, { recursive: true, force: true })
   })
 
   describe('1. RSS フィード処理・解析', () => {
@@ -288,12 +289,11 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
       try {
         const twitterClient = new TwitterClient({
-          credentials: {
-            apiKey: 'test-api-key',
-            apiSecret: 'test-api-secret',
-            accessToken: 'test-access-token',
-            accessTokenSecret: 'test-access-token-secret'
-          },
+          apiKey: 'test-api-key',
+          apiSecret: 'test-api-secret',
+          accessToken: 'test-access-token',
+          accessTokenSecret: 'test-access-token-secret'
+        }, {
           dryRun: true, // 実際の投稿は行わない
           logger
         })
@@ -315,7 +315,6 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         // 結果の検証
         expect(postResult).toBeDefined()
         expect(postResult).toHaveProperty('success')
-
 
         logger.info('Twitter統合フェーズ完了', testResults.phases.twitterIntegration)
       } catch (error) {
@@ -359,13 +358,14 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
         expect(isDuplicateFirst).toBe(false)
 
         // 履歴保存
-        await tweetHistory.saveTweet({
+        await tweetHistory.addTweet({
+          text: 'Test tweet content',
           url: testUrl,
           title: 'Test Article',
-          tweetText: 'Test tweet content',
           hashtags: ['#Test'],
-          postedAt: new Date(),
-          tweetId: 'test-tweet-id'
+          createdAt: new Date().toISOString(),
+          id: 'test-tweet-id',
+          status: 'success'
         })
 
         // 再度重複チェック

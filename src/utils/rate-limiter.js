@@ -88,6 +88,11 @@ class RateLimiter {
     }
   }
 
+  // ツイート専用のレート制限チェックメソッド（テスト互換性用）
+  async checkTweetLimit () {
+    return this.checkLimit('tweets')
+  }
+
   async recordRequest (type = 'requests', success = true) {
     try {
       const now = Date.now()

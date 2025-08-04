@@ -11,12 +11,13 @@ const puppeteer = require('puppeteer')
 const DashboardServer = require('../../src/dashboard/index')
 const { performance } = require('perf_hooks')
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3001
 
 describe('実際のユーザーシナリオ E2E テスト', () => {
   let browser
   let page
   let dashboardServer
+  const BASE_URL = `http://localhost:${PORT}`
   const performanceMetrics = {}
 
   const PERFORMANCE_THRESHOLDS = {
