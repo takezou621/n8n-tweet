@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(LEFTHOOK=0 git push -u origin feat/production-deployment-fixed)"
     ],
     "deny": []
   }
