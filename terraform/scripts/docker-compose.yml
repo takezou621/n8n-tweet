@@ -69,6 +69,7 @@ services:
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
       --requirepass ${REDIS_PASSWORD}
+      --bind 0.0.0.0
     volumes:
       - redis_data:/data
     networks:
