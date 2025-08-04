@@ -17,15 +17,15 @@ describe('ConfigLoader', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    
+
     // Reset environment variables
     delete process.env.TEST_VAR
     delete process.env.DATABASE_URL
     delete process.env.API_KEY
-    
+
     // Clear cache
     ConfigLoader.clearCache()
-    
+
     // Mock path.resolve to return predictable paths
     mockPath.resolve.mockImplementation((filePath) => `/absolute${filePath}`)
   })
@@ -85,14 +85,14 @@ describe('ConfigLoader', () => {
 
     it('should use cache on subsequent calls', () => {
       const mockConfig = { test: 'value' }
-      
+
       mockPath.resolve.mockReturnValue('/absolute/config.json')
       mockFs.existsSync.mockReturnValue(true)
       mockFs.readFileSync.mockReturnValue(JSON.stringify(mockConfig))
 
       // First call
       const result1 = ConfigLoader.loadConfig('config.json')
-      
+
       // Second call should use cache
       const result2 = ConfigLoader.loadConfig('config.json')
 
@@ -103,14 +103,14 @@ describe('ConfigLoader', () => {
 
     it('should bypass cache when useCache is false', () => {
       const mockConfig = { test: 'value' }
-      
+
       mockPath.resolve.mockReturnValue('/absolute/config.json')
       mockFs.existsSync.mockReturnValue(true)
       mockFs.readFileSync.mockReturnValue(JSON.stringify(mockConfig))
 
       // First call with cache disabled
       ConfigLoader.loadConfig('config.json', false)
-      
+
       // Second call should read file again
       ConfigLoader.loadConfig('config.json', false)
 
@@ -259,7 +259,7 @@ describe('ConfigLoader', () => {
         database: { host: 'localhost', port: 5432 },
         api: { version: 'v1' }
       }
-      
+
       const config2 = {
         database: { port: 3306, user: 'admin' },
         logging: { level: 'info' }
@@ -268,7 +268,7 @@ describe('ConfigLoader', () => {
       mockPath.resolve
         .mockReturnValueOnce('/absolute/config1.json')
         .mockReturnValueOnce('/absolute/config2.json')
-      
+
       mockFs.existsSync.mockReturnValue(true)
       mockFs.readFileSync
         .mockReturnValueOnce(JSON.stringify(config1))
@@ -295,7 +295,7 @@ describe('ConfigLoader', () => {
 
     it('should pass useCache parameter to loadConfig', () => {
       const config = { test: 'value' }
-      
+
       mockPath.resolve.mockReturnValue('/absolute/config.json')
       mockFs.existsSync.mockReturnValue(true)
       mockFs.readFileSync.mockReturnValue(JSON.stringify(config))
@@ -436,17 +436,17 @@ describe('ConfigLoader', () => {
   describe('clearCache', () => {
     it('should clear the configuration cache', () => {
       const mockConfig = { test: 'value' }
-      
+
       mockPath.resolve.mockReturnValue('/absolute/config.json')
       mockFs.existsSync.mockReturnValue(true)
       mockFs.readFileSync.mockReturnValue(JSON.stringify(mockConfig))
 
       // Load config to populate cache
       ConfigLoader.loadConfig('config.json')
-      
+
       // Clear cache
       ConfigLoader.clearCache()
-      
+
       // Load again - should read from file again
       ConfigLoader.loadConfig('config.json')
 
@@ -540,7 +540,7 @@ describe('ConfigLoader', () => {
 
     it('should maintain cache across different requires', () => {
       const mockConfig = { test: 'value' }
-      
+
       mockPath.resolve.mockReturnValue('/absolute/config.json')
       mockFs.existsSync.mockReturnValue(true)
       mockFs.readFileSync.mockReturnValue(JSON.stringify(mockConfig))

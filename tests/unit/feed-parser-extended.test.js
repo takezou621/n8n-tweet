@@ -193,7 +193,6 @@ describe('FeedParser - Extended Tests', () => {
       ]
 
       const results = await feedParser.parseMultipleFeeds(feedConfigs)
-
     })
   })
 

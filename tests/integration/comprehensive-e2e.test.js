@@ -54,7 +54,6 @@ describe('n8n-tweet システム包括的E2Eテスト', () => {
 
       // クリーンアップ
       fs.rmSync(testDataDir, { recursive: true, force: true })
-    }
   })
 
   describe('1. RSS フィード処理・解析', () => {

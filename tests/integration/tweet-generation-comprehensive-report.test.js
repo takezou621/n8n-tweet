@@ -221,7 +221,7 @@ describe('Tweet Generation Comprehensive Report', () => {
         const avgLength = Math.round(stats.lengths.reduce((sum, l) => sum + l, 0) / stats.lengths.length)
         const maxLength = Math.max(...stats.lengths)
         const minLength = Math.min(...stats.lengths)
-        const avgEngagement = stats.engagements && stats.engagements.length > 0 
+        const avgEngagement = stats.engagements && stats.engagements.length > 0
           ? (stats.engagements.reduce((sum, e) => sum + e, 0) / stats.engagements.length).toFixed(3)
           : 'N/A'
 
@@ -261,7 +261,6 @@ describe('Tweet Generation Comprehensive Report', () => {
 
         // URL含有ツイートの文字数チェック
         expect(tweet.content.length).toBeLessThanOrEqual(280)
-
       }
     })
   })

@@ -10,7 +10,7 @@ const config = require('../../config/rss-feeds.json')
 
 describe('Real RSS Feed Tweet Generation Integration Test', () => {
   let generator, parser, filter
-  let realFeedData = []
+  const realFeedData = []
 
   beforeAll(async () => {
     generator = new TweetGenerator({

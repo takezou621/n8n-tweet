@@ -31,7 +31,7 @@ describe('CryptoUtils', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    
+
     mockLogger = {
       info: jest.fn(),
       warn: jest.fn(),
@@ -83,7 +83,7 @@ describe('CryptoUtils', () => {
     })
 
     it('should initialize master key from environment variable', () => {
-      process.env.ENCRYPTION_KEY = 'test-encryption-key'
+      process.env.ENCRYPTION_KEY = 'vK9mR3nP8qL5xC2wE7yT4uI6oA1sD9fG8hJ0z'
 
       cryptoUtils = new CryptoUtils({ logger: mockLogger })
 
@@ -92,7 +92,7 @@ describe('CryptoUtils', () => {
     })
 
     it('should initialize master key from MASTER_KEY environment variable', () => {
-      process.env.MASTER_KEY = 'test-master-key'
+      process.env.MASTER_KEY = 'bH5nM7pQ2vL9xF4cW8eR1tY6uK3gS0dA5jN8z'
 
       cryptoUtils = new CryptoUtils({ logger: mockLogger })
 
@@ -102,7 +102,7 @@ describe('CryptoUtils', () => {
 
     it('should read master key from file if no environment variable', () => {
       fs.existsSync.mockReturnValue(true)
-      fs.readFileSync.mockReturnValue('file-encryption-key')
+      fs.readFileSync.mockReturnValue('mP9qW2eR5tY8uI1oA4sD7fG0hJ3kL6xC9vB2n')
 
       cryptoUtils = new CryptoUtils({ logger: mockLogger })
 
@@ -140,7 +140,7 @@ describe('CryptoUtils', () => {
 
       expect(() => {
         new CryptoUtils({ logger: mockLogger })
-      }).toThrow('No encryption key found. Set ENCRYPTION_KEY environment variable.')
+      }).toThrow('No encryption key found. Set ENCRYPTION_KEY environment variable with at least 32 characters.')
     })
 
     it('should handle key initialization errors', () => {
@@ -153,7 +153,7 @@ describe('CryptoUtils', () => {
       }).toThrow('File system error')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Failed to initialize encryption key:', 
+        'Failed to initialize encryption key:',
         'File system error'
       )
     })
@@ -218,7 +218,7 @@ describe('CryptoUtils', () => {
     it('should encrypt with custom key', () => {
       const customKey = crypto.randomBytes(32)
       const plaintext = 'Custom key test'
-      
+
       const encrypted = cryptoUtils.encrypt(plaintext, customKey)
       const decrypted = cryptoUtils.decrypt(encrypted, customKey)
 
@@ -228,7 +228,7 @@ describe('CryptoUtils', () => {
     it('should fail decryption with wrong key', () => {
       const plaintext = 'Test message'
       const wrongKey = crypto.randomBytes(32)
-      
+
       const encrypted = cryptoUtils.encrypt(plaintext)
 
       expect(() => {
@@ -236,7 +236,7 @@ describe('CryptoUtils', () => {
       }).toThrow('Decryption failed')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Decryption failed:', 
+        'Decryption failed:',
         expect.any(String)
       )
     })
@@ -250,7 +250,7 @@ describe('CryptoUtils', () => {
       }).toThrow('Encryption failed')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Encryption failed:', 
+        'Encryption failed:',
         expect.any(String)
       )
     })
@@ -270,7 +270,7 @@ describe('CryptoUtils', () => {
       }).toThrow('Decryption failed')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Decryption failed:', 
+        'Decryption failed:',
         expect.any(String)
       )
     })
@@ -286,10 +286,10 @@ describe('CryptoUtils', () => {
     it('should use correct algorithm in encrypted data', () => {
       const plaintext = 'Algorithm test'
       const encrypted = cryptoUtils.encrypt(plaintext)
-      
+
       // Decode to check structure
       const decoded = JSON.parse(Buffer.from(encrypted, 'base64').toString('utf8'))
-      
+
       expect(decoded.algorithm).toBe('aes-256-gcm')
       expect(decoded.iv).toBeDefined()
       expect(decoded.tag).toBeDefined()
@@ -309,8 +309,8 @@ describe('CryptoUtils', () => {
       cryptoUtils.encryptFile(filePath, data)
 
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        filePath, 
-        expect.any(String), 
+        filePath,
+        expect.any(String),
         'utf8'
       )
       expect(fs.chmodSync).toHaveBeenCalledWith(filePath, 0o600)
@@ -336,7 +336,7 @@ describe('CryptoUtils', () => {
 
     it('should throw error when decrypting non-existent file', () => {
       const filePath = '/test/path/nonexistent.dat'
-      
+
       fs.existsSync.mockReturnValue(false)
 
       expect(() => {
@@ -344,7 +344,7 @@ describe('CryptoUtils', () => {
       }).toThrow(`File not found: ${filePath}`)
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        `Failed to decrypt file ${filePath}:`, 
+        `Failed to decrypt file ${filePath}:`,
         expect.any(String)
       )
     })
@@ -362,7 +362,7 @@ describe('CryptoUtils', () => {
       }).toThrow('Write permission denied')
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        `Failed to encrypt file ${filePath}:`, 
+        `Failed to encrypt file ${filePath}:`,
         'Write permission denied'
       )
     })
@@ -433,7 +433,7 @@ describe('CryptoUtils', () => {
       }).toThrow()
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Hashing failed:', 
+        'Hashing failed:',
         expect.any(String)
       )
     })
@@ -457,7 +457,7 @@ describe('CryptoUtils', () => {
     it('should sign and verify with custom key', () => {
       const data = 'important data'
       const customKey = crypto.randomBytes(32)
-      
+
       const signature = cryptoUtils.sign(data, customKey)
       const isValid = cryptoUtils.verify(data, signature, customKey)
 
@@ -467,7 +467,7 @@ describe('CryptoUtils', () => {
     it('should fail verification with wrong signature', () => {
       const data = 'important data'
       const wrongSignature = 'invalid-signature'
-      
+
       const isValid = cryptoUtils.verify(data, wrongSignature)
 
       expect(isValid).toBe(false)
@@ -476,7 +476,7 @@ describe('CryptoUtils', () => {
     it('should fail verification with modified data', () => {
       const originalData = 'important data'
       const modifiedData = 'modified data'
-      
+
       const signature = cryptoUtils.sign(originalData)
       const isValid = cryptoUtils.verify(modifiedData, signature)
 
@@ -509,14 +509,14 @@ describe('CryptoUtils', () => {
       }).toThrow()
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Signing failed:', 
+        'Signing failed:',
         expect.any(String)
       )
     })
 
     it('should handle verification errors gracefully', () => {
       const data = 'test data'
-      
+
       // Mock timing safe equal to throw error
       const originalTimingSafeEqual = crypto.timingSafeEqual
       crypto.timingSafeEqual = jest.fn().mockImplementation(() => {
@@ -527,7 +527,7 @@ describe('CryptoUtils', () => {
 
       expect(result).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Signature verification failed:', 
+        'Signature verification failed:',
         'Comparison error'
       )
 
@@ -620,7 +620,7 @@ describe('CryptoUtils', () => {
     it('should fail verification with wrong password', () => {
       const password = 'correct-password'
       const wrongPassword = 'wrong-password'
-      
+
       const hashed = cryptoUtils.hashPassword(password)
       const isValid = cryptoUtils.verifyPassword(wrongPassword, hashed)
 
@@ -667,7 +667,7 @@ describe('CryptoUtils', () => {
       }).toThrow()
 
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Password hashing failed:', 
+        'Password hashing failed:',
         'Random generation failed'
       )
 
@@ -689,7 +689,7 @@ describe('CryptoUtils', () => {
 
       expect(result).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Password verification failed:', 
+        'Password verification failed:',
         'PBKDF2 failed'
       )
 
@@ -802,7 +802,7 @@ describe('CryptoUtils', () => {
 
       expect(result).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Cryptographic self-test failed:', 
+        'Cryptographic self-test failed:',
         expect.any(String)
       )
 
@@ -822,7 +822,7 @@ describe('CryptoUtils', () => {
 
       expect(result).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Cryptographic self-test failed:', 
+        'Cryptographic self-test failed:',
         expect.any(String)
       )
 
@@ -839,7 +839,7 @@ describe('CryptoUtils', () => {
 
       expect(result).toBe(false)
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'Cryptographic self-test failed:', 
+        'Cryptographic self-test failed:',
         expect.any(String)
       )
 
@@ -858,7 +858,7 @@ describe('CryptoUtils', () => {
 
     it('should use convenience functions', () => {
       const testData = 'test data'
-      
+
       // Test encrypt/decrypt
       const encrypted = encrypt(testData)
       const decrypted = decrypt(encrypted)
@@ -897,7 +897,7 @@ describe('CryptoUtils', () => {
 
       const encrypted = encrypt(testData, customKey)
       const decrypted = decrypt(encrypted, customKey)
-      
+
       expect(decrypted).toBe(testData)
     })
   })

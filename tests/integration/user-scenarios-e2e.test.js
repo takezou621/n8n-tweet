@@ -11,6 +11,8 @@ const puppeteer = require('puppeteer')
 const DashboardServer = require('../../src/dashboard/index')
 const { performance } = require('perf_hooks')
 
+const PORT = process.env.PORT || 3000
+
 describe('実際のユーザーシナリオ E2E テスト', () => {
   let browser
   let page
@@ -145,7 +147,6 @@ describe('実際のユーザーシナリオ E2E テスト', () => {
         const cpuUsage = await page.$eval('#cpu-usage .display-6', el => el.textContent)
 
         console.log(`メモリ使用量: ${memoryUsage}MB, CPU使用率: ${cpuUsage}%`)
-
       } catch (error) {
         console.log('⚠️ メトリクス情報の表示にエラー - 続行')
       }
