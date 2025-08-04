@@ -4,7 +4,8 @@
       "Bash(git pull:*)",
       "Bash(LEFTHOOK=0 git commit -m \"$(cat <<''EOF''\nfeat: add Playwright E2E testing framework\n\n- Add @playwright/test dependency\n- Configure Playwright with webServer settings\n- Add E2E tests for dashboard and API endpoints\n- Move performance tests from Playwright to Jest\n- Move user scenario tests from Playwright to Jest\n- Include test screenshots for visual regression\n\nThis PR focuses solely on E2E testing infrastructure\nwithout production deployment or infrastructure changes.\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(LEFTHOOK=0 git push -u origin feat/playwright-e2e-tests)",
-      "Bash(gh pr create:*)"
+      "Bash(gh pr create:*)",
+      "Bash(LEFTHOOK=0 git push -u origin feat/production-deployment)"
     ],
     "deny": []
   }
