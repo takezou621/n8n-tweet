@@ -194,8 +194,11 @@ describe('FeedParser - Extended Tests', () => {
 
       const results = await feedParser.parseMultipleFeeds(feedConfigs)
 
-      expect(results).toHaveLength(1)
+      expect(results).toHaveLength(2) // Both successful and failed feeds returned
+      expect(results[0].success).toBe(true)
       expect(results[0].metadata.title).toBe('Good')
+      expect(results[1].success).toBe(false)
+      expect(results[1].error).toBe('Bad feed')
     })
   })
 
