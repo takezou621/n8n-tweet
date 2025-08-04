@@ -1,0 +1,58 @@
+# Example Terraform Variables for n8n-tweet Proxmox Deployment
+# Copy this file to terraform.tfvars and customize for your environment
+
+# Proxmox Provider Configuration
+proxmox_api_url          = "https://your-proxmox-server.example.com:8006/api2/json"
+proxmox_api_token_id     = "your-username@pam!your-token-id"
+proxmox_api_token_secret = "your-api-token-secret"
+
+# Container Resource Configuration
+container_cores   = 2     # CPU cores (1-8)
+container_memory  = 4096  # Memory in MB (1024-16384)
+container_storage = 32    # Storage in GB (16-128)
+
+# Network Configuration
+container_ip     = "192.168.1.100"  # Static IP (leave empty for DHCP)
+network_gateway  = "192.168.1.1"    # Network gateway
+network_bridge   = "vmbr0"          # Proxmox network bridge
+network_cidr     = 24               # Network CIDR (/24)
+
+# Container Template and OS
+container_template = "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
+container_ostype   = "ubuntu"
+
+# Proxmox Cluster Configuration
+target_node   = "proxmox-node-1"  # Proxmox node name
+storage_pool  = "local-lvm"       # Storage pool for container
+
+# SSH Configuration
+ssh_public_key_path  = "~/.ssh/id_rsa.pub"  # Path to SSH public key
+ssh_private_key_path = "~/.ssh/id_rsa"      # Path to SSH private key
+
+# Application Configuration
+domain_name = "n8n-tweet.example.com"  # Domain for the application
+environment = "prod"                    # Environment: dev, staging, prod
+
+# Tags and Metadata
+project_name = "n8n-tweet"
+owner_email  = "admin@example.com"
+cost_center  = "infrastructure"
+
+# Security Configuration
+container_unprivileged = true   # Run in unprivileged mode
+container_protection   = true   # Enable deletion protection
+
+# Advanced Configuration Examples
+# container_cores   = 4      # For high-traffic deployments
+# container_memory  = 8192   # For memory-intensive workloads
+# container_storage = 64     # For large data storage needs
+# environment      = "dev"   # For development environment
+
+# Network Examples
+# container_ip = ""                    # Use DHCP instead of static IP
+# network_gateway = "10.0.1.1"        # Different network range
+# network_bridge = "vmbr1"            # Different network bridge
+
+# Template Examples
+# container_template = "local:vztmpl/debian-12-standard_12.2-1_amd64.tar.zst"  # Debian 12
+# container_template = "local:vztmpl/centos-9-default_20221109_amd64.tar.xz"   # CentOS 9
