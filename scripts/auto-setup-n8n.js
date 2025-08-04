@@ -6,7 +6,17 @@ const path = require('path');
 const axios = require('axios');
 
 // 設定
-const N8N_BASE_URL = 'http://localhost:5678';
+const N8N_BASE_URL = process.env.N8N_BASE_URL || 'http://localhost:5678';
+const N8N_ADMIN_EMAIL = process.env.N8N_ADMIN_EMAIL || 'admin@n8n-tweet.local';
+const N8N_ADMIN_PASSWORD = process.env.N8N_ADMIN_PASSWORD;
+
+// セキュリティチェック
+if (!N8N_ADMIN_PASSWORD) {
+  console.error('❌ 環境変数 N8N_ADMIN_PASSWORD が設定されていません');
+  console.error('セキュリティのため、管理者パスワードは環境変数で設定してください');
+  console.error('例: export N8N_ADMIN_PASSWORD="your-secure-password"');
+  process.exit(1);
+}
 
 // カラー出力
 const colors = {
@@ -66,10 +76,10 @@ class N8nAutoSetup {
       log('👤 オーナーアカウント作成中...', 'blue');
       
       const setupData = {
-        email: 'admin@n8n-tweet.local',
+        email: N8N_ADMIN_EMAIL,
         firstName: 'AI',
         lastName: 'TweetBot',
-        password: 'Admin123!'
+        password: N8N_ADMIN_PASSWORD
       };
 
       const response = await axios.post(`${this.baseUrl}/rest/owner/setup`, setupData, {
@@ -95,8 +105,8 @@ class N8nAutoSetup {
       log('🔑 ログイン処理中...', 'blue');
       
       const loginData = {
-        emailOrLdapLoginId: 'admin@n8n-tweet.local',
-        password: 'Admin123!'
+        emailOrLdapLoginId: N8N_ADMIN_EMAIL,
+        password: N8N_ADMIN_PASSWORD
       };
 
       const response = await axios.post(`${this.baseUrl}/rest/login`, loginData, {
@@ -300,7 +310,7 @@ async function main() {
     log('  ✅ 自動実行スケジュール設定', 'green');
     log('', 'reset');
     log('🌐 n8nダッシュボード: http://localhost:5678', 'blue');
-    log('👤 ログイン: admin@n8n-tweet.local / Admin123!', 'blue');
+    log(`👤 ログイン: ${N8N_ADMIN_EMAIL} / [環境変数で設定済み]`, 'blue');
     log('', 'reset');
     log('⏰ 自動実行スケジュール:', 'cyan');
     log('  🌅 朝 6:00 - モーニング AI ニュース', 'cyan');

@@ -40,15 +40,21 @@ class CryptoUtils {
   initializeMasterKey () {
     try {
       const keySource = process.env.ENCRYPTION_KEY || process.env.MASTER_KEY
+
       if (keySource) {
+        // 環境変数の妥当性チェック
+        this.validateEncryptionKey(keySource)
         // 環境変数からキーを派生
         this.masterKey = this.deriveKey(keySource, 'master-key-salt')
+        this.logger.info('Encryption key loaded from environment variable')
       } else {
         // キーファイルから読み取り、なければ生成
         const keyFile = path.join(process.cwd(), '.encryption-key')
         if (fs.existsSync(keyFile)) {
-          const keyData = fs.readFileSync(keyFile, 'utf8')
+          const keyData = fs.readFileSync(keyFile, 'utf8').trim()
+          this.validateEncryptionKey(keyData)
           this.masterKey = this.deriveKey(keyData, 'master-key-salt')
+          this.logger.info('Encryption key loaded from file')
         } else {
           // 開発環境用のデフォルトキー（本番環境では使用禁止）
           if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
@@ -57,13 +63,49 @@ class CryptoUtils {
             this.logger.warn('Using default encryption key for development. ' +
               'Do not use in production!')
           } else {
-            throw new Error('No encryption key found. Set ENCRYPTION_KEY environment variable.')
+            this.logger.error('Production environment requires ENCRYPTION_KEY environment variable')
+            throw new Error('No encryption key found. ' +
+              'Set ENCRYPTION_KEY environment variable with at least 32 characters.')
           }
         }
       }
     } catch (error) {
       this.logger.error('Failed to initialize encryption key:', error.message)
       throw error
+    }
+  }
+
+  /**
+   * 暗号化キーの妥当性を検証
+   */
+  validateEncryptionKey (key) {
+    if (!key || typeof key !== 'string') {
+      throw new Error('Encryption key must be a non-empty string')
+    }
+
+    if (key.length < 32) {
+      throw new Error('Encryption key must be at least 32 characters long')
+    }
+
+    // 弱いキーパターンの検出
+    const weakPatterns = [
+      /^(.)\1{31,}$/, // 同じ文字の繰り返し
+      /^(password|secret|key|admin|test)/i, // 一般的な単語
+      /^1234567890/,
+      /^abcdefgh/,
+      /^qwerty/i
+    ]
+
+    for (const pattern of weakPatterns) {
+      if (pattern.test(key)) {
+        throw new Error('Encryption key is too weak. Use a strong, random key.')
+      }
+    }
+
+    // エントロピーの簡易チェック
+    const uniqueChars = new Set(key.split('')).size
+    if (uniqueChars < 16) {
+      this.logger.warn('Encryption key has low entropy. Consider using a more random key.')
     }
   }
 
