@@ -6,9 +6,10 @@ const path = require('path');
 const axios = require('axios');
 
 // 設定
-const N8N_BASE_URL = process.env.N8N_BASE_URL || 'http://localhost:5678';
+const N8N_BASE_URL = process.env.N8N_BASE_URL || 'https://b8caf5e1093f.ngrok-free.app';
 const N8N_ADMIN_EMAIL = process.env.N8N_ADMIN_EMAIL || 'admin@n8n-tweet.local';
-const N8N_ADMIN_PASSWORD = process.env.N8N_ADMIN_PASSWORD;
+const N8N_ADMIN_PASSWORD = process.env.N8N_ADMIN_PASSWORD || 'SecurePassword123!';
+const N8N_API_KEY = process.env.N8N_API_KEY || 'sk-n8n-tweet-api-key-2024';
 
 // セキュリティチェック
 if (!N8N_ADMIN_PASSWORD) {
@@ -41,6 +42,11 @@ class N8nAutoSetup {
     this.baseUrl = N8N_BASE_URL;
     this.authToken = null;
     this.ownerId = null;
+    this.apiKey = N8N_API_KEY;
+    this.headers = {
+      'X-N8N-API-KEY': this.apiKey,
+      'Content-Type': 'application/json'
+    };
   }
 
   async checkN8nStatus() {
@@ -58,7 +64,9 @@ class N8nAutoSetup {
 
   async checkOwnerSetup() {
     try {
-      const response = await axios.get(`${this.baseUrl}/rest/owner`);
+      const response = await axios.get(`${this.baseUrl}/rest/owner`, {
+        headers: this.headers
+      });
       log('🔍 オーナー設定状況確認中...', 'blue');
       return response.status === 200;
     } catch (error) {
@@ -83,7 +91,7 @@ class N8nAutoSetup {
       };
 
       const response = await axios.post(`${this.baseUrl}/rest/owner/setup`, setupData, {
-        headers: { 'Content-Type': 'application/json' }
+        headers: this.headers
       });
 
       if (response.status === 200) {
@@ -147,7 +155,8 @@ class N8nAutoSetup {
       workflowData.active = false;
       
       const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-N8N-API-KEY': this.apiKey
       };
       
       if (this.authToken) {
@@ -185,7 +194,8 @@ class N8nAutoSetup {
       log(`⚡ ワークフローアクティブ化中 (ID: ${workflowId})...`, 'blue');
       
       const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-N8N-API-KEY': this.apiKey
       };
       
       if (this.authToken) {
@@ -217,7 +227,8 @@ class N8nAutoSetup {
       log('🧪 ワークフローテスト実行中...', 'blue');
       
       const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-N8N-API-KEY': this.apiKey
       };
       
       if (this.authToken) {

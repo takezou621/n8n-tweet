@@ -1,0 +1,404 @@
+{
+  "name": "AI Tweet Bot - RSS to Twitter (Fixed)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "triggerAtHour": 6
+            },
+            {
+              "field": "hours",
+              "triggerAtHour": 12
+            },
+            {
+              "field": "hours",
+              "triggerAtHour": 18
+            }
+          ]
+        }
+      },
+      "name": "Schedule AI Content",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "feeds",
+              "value": "[{\"name\":\"OpenAI Blog\",\"url\":\"https://openai.com/news/rss.xml\",\"category\":\"openai\",\"enabled\":true},{\"name\":\"ArXiv AI\",\"url\":\"http://export.arxiv.org/rss/cs.AI\",\"category\":\"research\",\"enabled\":true},{\"name\":\"Google AI Blog\",\"url\":\"https://ai.googleblog.com/feeds/posts/default\",\"category\":\"google\",\"enabled\":true},{\"name\":\"Towards Data Science\",\"url\":\"https://towardsdatascience.com/feed\",\"category\":\"community\",\"enabled\":true},{\"name\":\"Anthropic Blog\",\"url\":\"https://www.anthropic.com/blog.rss\",\"category\":\"anthropic\",\"enabled\":true}]"
+            },
+            {
+              "name": "categories",
+              "value": "{\"openai\":{\"hashtags\":[\"#OpenAI\",\"#AI\"],\"maxLength\":240},\"research\":{\"hashtags\":[\"#AI\",\"#Research\"],\"maxLength\":240},\"google\":{\"hashtags\":[\"#GoogleAI\",\"#AI\"],\"maxLength\":240},\"community\":{\"hashtags\":[\"#AI\",\"#MachineLearning\"],\"maxLength\":240},\"anthropic\":{\"hashtags\":[\"#Anthropic\",\"#AI\"],\"maxLength\":240}}"
+            }
+          ]
+        }
+      },
+      "name": "RSS Feed Config",
+      "type": "@n8n/n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feeds[0].url }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fetch OpenAI Blog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feeds[1].url }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fetch ArXiv AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feeds[2].url }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fetch Google AI Blog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feeds[3].url }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fetch Towards Data Science",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 800]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.feeds[4].url }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "name": "Fetch Anthropic Blog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 1000]
+    },
+    {
+      "parameters": {
+        "functionCode": "// RSS XMLをJSONに変換する関数\nfunction parseRSSXML(xmlString) {\n  try {\n    // 簡易的なXMLパーサー\n    const items = [];\n    const itemMatches = xmlString.match(/<item[^>]*>([\\s\\S]*?)<\\/item>/g);\n    \n    if (!itemMatches) return [];\n    \n    for (const itemMatch of itemMatches.slice(0, 3)) { // 最新3件のみ\n      const titleMatch = itemMatch.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/);\n      const linkMatch = itemMatch.match(/<link[^>]*>([\\s\\S]*?)<\\/link>/);\n      const descriptionMatch = itemMatch.match(/<description[^>]*>([\\s\\S]*?)<\\/description>/);\n      const pubDateMatch = itemMatch.match(/<pubDate[^>]*>([\\s\\S]*?)<\\/pubDate>/);\n      \n      if (titleMatch && linkMatch) {\n        items.push({\n          title: titleMatch[1].replace(/<!\\[CDATA\\[(.*)\\]\\]>/, '$1').replace(/<[^>]*>/g, '').trim(),\n          link: linkMatch[1].replace(/<!\\[CDATA\\[(.*)\\]\\]>/, '$1').replace(/<[^>]*>/g, '').trim(),\n          description: descriptionMatch ? descriptionMatch[1].replace(/<!\\[CDATA\\[(.*)\\]\\]>/, '$1').replace(/<[^>]*>/g, '').trim() : '',\n          pubDate: pubDateMatch ? pubDateMatch[1].replace(/<!\\[CDATA\\[(.*)\\]\\]>/, '$1').replace(/<[^>]*>/g, '').trim() : ''\n        });\n      }\n    }\n    \n    return items;\n  } catch (error) {\n    console.error('RSS parsing error:', error);\n    return [];\n  }\n}\n\n// AI関連キーワード\nconst aiKeywords = [\n  'artificial intelligence', 'machine learning', 'deep learning',\n  'neural network', 'transformer', 'gpt', 'llm', 'chatgpt',\n  'computer vision', 'natural language processing', 'nlp',\n  'reinforcement learning', 'supervised learning', 'unsupervised learning',\n  'algorithm', 'model', 'dataset', 'training', 'inference',\n  'openai', 'anthropic', 'claude', 'tensorflow', 'pytorch',\n  'generative ai', 'diffusion model', 'stable diffusion',\n  'ai safety', 'alignment', 'ethics', 'bias'\n];\n\n// コンテンツフィルタリング\nfunction isAIRelated(text) {\n  if (!text) return false;\n  const lowerText = text.toLowerCase();\n  return aiKeywords.some(keyword => lowerText.includes(keyword));\n}\n\n// ツイート生成\nfunction generateTweet(item, feedInfo) {\n  const maxLength = feedInfo.maxLength || 240;\n  const hashtags = feedInfo.hashtags || ['#AI'];\n  \n  let content = item.title;\n  if (content.length > maxLength - 50) {\n    content = content.substring(0, maxLength - 50) + '...';\n  }\n  \n  const tweet = `${content} ${hashtags.join(' ')}`;\n  return tweet;\n}\n\n// メイン処理\nconst xmlData = $input.first().json.body || $input.first().json;\nconst items = parseRSSXML(xmlData);\nconst feedInfo = $node[\"RSS Feed Config\"].json.categories[$input.first().json.category] || {};\n\nconst results = [];\nfor (const item of items) {\n  if (isAIRelated(item.title + ' ' + item.description)) {\n    const tweet = generateTweet(item, feedInfo);\n    results.push({\n      json: {\n        ...item,\n        tweet: tweet,\n        category: $input.first().json.category || 'unknown',\n        success: true\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "name": "Parse RSS and Filter Content",
+      "type": "@n8n/n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "category",
+              "value": "openai"
+            }
+          ]
+        }
+      },
+      "name": "Set Category OpenAI",
+      "type": "@n8n/n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [680, 180]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "category",
+              "value": "research"
+            }
+          ]
+        }
+      },
+      "name": "Set Category ArXiv",
+      "type": "@n8n/n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [680, 380]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "category",
+              "value": "google"
+            }
+          ]
+        }
+      },
+      "name": "Set Category Google",
+      "type": "@n8n/n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [680, 580]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "category",
+              "value": "community"
+            }
+          ]
+        }
+      },
+      "name": "Set Category TDS",
+      "type": "@n8n/n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [680, 780]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "category",
+              "value": "anthropic"
+            }
+          ]
+        }
+      },
+      "name": "Set Category Anthropic",
+      "type": "@n8n/n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [680, 980]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.tweet }}",
+        "additionalFields": {}
+      },
+      "name": "Post Tweet",
+      "type": "@n8n/n8n-nodes-base.twitter",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": {
+        "twitterOAuth2": {
+          "id": "twitter-oauth2-credentials",
+          "name": "Twitter OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// ツイート投稿ログ\nconst items = $input.all();\nconst timestamp = new Date().toISOString();\n\nconst logData = {\n  timestamp: timestamp,\n  totalProcessed: items.length,\n  successful: items.filter(item => item.json.success !== false).length,\n  failed: items.filter(item => item.json.success === false).length,\n  tweets: items.map(item => ({\n    title: item.json.title,\n    category: item.json.category,\n    success: item.json.success !== false,\n    tweetLength: item.json.tweet ? item.json.tweet.length : 0\n  }))\n};\n\nconsole.log('AI Tweet Bot Execution Log:', JSON.stringify(logData, null, 2));\n\nreturn [{ json: logData }];"
+      },
+      "name": "Log Results",
+      "type": "@n8n/n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Schedule AI Content": {
+      "main": [
+        [
+          {
+            "node": "RSS Feed Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Feed Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch OpenAI Blog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch ArXiv AI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Google AI Blog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Towards Data Science",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Anthropic Blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch OpenAI Blog": {
+      "main": [
+        [
+          {
+            "node": "Set Category OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch ArXiv AI": {
+      "main": [
+        [
+          {
+            "node": "Set Category ArXiv",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Google AI Blog": {
+      "main": [
+        [
+          {
+            "node": "Set Category Google",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Towards Data Science": {
+      "main": [
+        [
+          {
+            "node": "Set Category TDS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Anthropic Blog": {
+      "main": [
+        [
+          {
+            "node": "Set Category Anthropic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Category OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Parse RSS and Filter Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Category ArXiv": {
+      "main": [
+        [
+          {
+            "node": "Parse RSS and Filter Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Category Google": {
+      "main": [
+        [
+          {
+            "node": "Parse RSS and Filter Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Category TDS": {
+      "main": [
+        [
+          {
+            "node": "Parse RSS and Filter Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Category Anthropic": {
+      "main": [
+        [
+          {
+            "node": "Parse RSS and Filter Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse RSS and Filter Content": {
+      "main": [
+        [
+          {
+            "node": "Post Tweet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Tweet": {
+      "main": [
+        [
+          {
+            "node": "Log Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true,
+  "id": "ai-tweet-bot-fixed"
+}

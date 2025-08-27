@@ -3,12 +3,13 @@
  * ツイート投稿と認証を管理
  *
  * Features:
- * - ツイート投稿
+ * - ツイート投稿 (OAuth 1.0a認証)
  * - レート制限管理
  * - エラーハンドリング
  * - 投稿履歴の管理
  */
 
+const { TwitterApi } = require('twitter-api-v2')
 const RateLimiter = require('../utils/rate-limiter')
 const { createLogger } = require('../utils/logger')
 const twitterConfig = require('../../config/twitter-config.json')
@@ -28,9 +29,17 @@ class TwitterClient {
     // ドライランモードの設定
     this.dryRun = config.dryRun || false
 
-    // ドライランモードでない場合のみ認証情報の検証
+    // Twitter API v2クライアントの初期化
     if (!this.dryRun) {
-      this.validateCredentials()
+      this.client = new TwitterApi({
+        appKey: this.credentials.apiKey,
+        appSecret: this.credentials.apiSecret,
+        accessToken: this.credentials.accessToken,
+        accessSecret: this.credentials.accessTokenSecret
+      })
+
+      // Read-writeクライアントを取得
+      this.rwClient = this.client.readWrite
     }
 
     this.logger = createLogger('twitter-client', { enableConsole: false })
@@ -120,25 +129,26 @@ class TwitterClient {
         }
       }
 
-      // リトライロジックでAPI呼び出し
+      // twitter-api-v2ライブラリを使用してツイート投稿
       const result = await this.makeRequestWithRetry(async () => {
-        const response = await fetch(`${this.config.api.baseUrl}/tweets`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${this.credentials.bearerToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ text })
-        })
+        try {
+          const tweet = await this.rwClient.v2.tweet(text)
+          return tweet
+        } catch (error) {
+          // twitter-api-v2のエラーを統一された形式に変換
+          console.error('Twitter API Error Details:', error)
 
-        if (!response.ok) {
-          const error = await response.json()
-          const apiError = new Error(error.errors?.[0]?.message || 'API request failed')
-          apiError.status = response.status
+          const apiError = new Error(error.message || 'Twitter API request failed')
+          apiError.status = error.code || error.statusCode || 500
+          apiError.type = error.type || 'api_error'
+
+          // エラーの詳細情報を追加
+          if (error.errors) {
+            apiError.details = error.errors
+          }
+
           throw apiError
         }
-
-        return response.json()
       })
 
       // 成功時の処理
@@ -198,35 +208,19 @@ class TwitterClient {
 
   async testConnection () {
     try {
-      const response = await fetch(`${this.config.api.baseUrl}/users/me`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${this.credentials.bearerToken}`
-        }
-      })
+      // twitter-api-v2ライブラリを使用して現在のユーザー情報を取得
+      const user = await this.client.v2.me()
 
-      if (!response.ok) {
-        const error = await response.json()
-        return {
-          success: false,
-          error: {
-            type: 'authentication',
-            message: error.errors?.[0]?.message || 'Authentication failed'
-          }
-        }
-      }
-
-      const result = await response.json()
       return {
         success: true,
-        user: result.data
+        user: user.data
       }
     } catch (error) {
       return {
         success: false,
         error: {
-          type: 'network',
-          message: error.message
+          type: 'authentication',
+          message: error.message || 'Authentication failed'
         }
       }
     }

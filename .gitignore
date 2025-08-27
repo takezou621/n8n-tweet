@@ -215,3 +215,28 @@ webpack-stats.json
 # Local environment overrides
 local.json
 local.*.json
+
+# Test artifacts and temporary files
+test_*.js
+test_*.json
+**/playwright/screenshots/
+**/playwright/*.spec.js
+**/playwright/*.json
+playwright-report/
+test-results/
+
+# Database migration and setup scripts
+*.sql
+generate_password*.js
+hash_password*.js
+update_*.sql
+
+# Twitter credential templates and guides
+twitter-credentials-*.json
+twitter-*-guide.md
+
+# Workflow test files
+workflow-webhook-*.json
+workflow-with-webhook*.json
+test_workflow*.json
+simple-workflow-template.json

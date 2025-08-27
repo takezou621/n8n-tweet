@@ -46,7 +46,7 @@
     },
     {
       "name": "MIT Technology Review AI",
-      "url": "https://www.technologyreview.com/feed/",
+      "url": "https://www.technologyreview.com/topics/artificial-intelligence/rss/",
       "category": "news",
       "enabled": true,
       "description": "MIT Technology Review AI and tech news",
@@ -65,6 +65,50 @@
       "timeout": 30000,
       "retryAttempts": 1,
       "priority": "low"
+    },
+    {
+      "name": "Hugging Face Blog",
+      "url": "https://huggingface.co/blog/feed.xml",
+      "category": "industry",
+      "enabled": true,
+      "description": "Hugging Face AI models, datasets, and ML community updates",
+      "updateInterval": "0 */8 * * *",
+      "timeout": 30000,
+      "retryAttempts": 2,
+      "priority": "high"
+    },
+    {
+      "name": "Anthropic Blog",
+      "url": "https://www.anthropic.com/news/rss.xml",
+      "category": "industry",
+      "enabled": true,
+      "description": "Anthropic AI research and safety updates",
+      "updateInterval": "0 */12 * * *",
+      "timeout": 30000,
+      "retryAttempts": 2,
+      "priority": "high"
+    },
+    {
+      "name": "Stability AI Blog",
+      "url": "https://stability.ai/blog/rss.xml",
+      "category": "industry",
+      "enabled": true,
+      "description": "Stability AI image generation and AI model updates",
+      "updateInterval": "0 */12 * * *",
+      "timeout": 30000,
+      "retryAttempts": 2,
+      "priority": "medium"
+    },
+    {
+      "name": "Cohere Blog",
+      "url": "https://cohere.com/blog/rss.xml",
+      "category": "industry",
+      "enabled": true,
+      "description": "Cohere AI language models and NLP research",
+      "updateInterval": "0 */12 * * *",
+      "timeout": 30000,
+      "retryAttempts": 2,
+      "priority": "medium"
     }
   ],
   "globalSettings": {
@@ -80,22 +124,22 @@
   "categories": {
     "research": {
       "weight": 1.0,
-      "keywords": ["arxiv", "paper", "research", "study", "algorithm", "neural", "deep learning"],
+      "keywords": ["arxiv", "paper", "research", "study", "algorithm", "neural", "deep learning", "transformer", "gpt", "bert", "llm", "large language model", "foundation model", "multimodal", "reinforcement learning", "computer vision", "nlp", "natural language processing", "generative ai", "diffusion", "stable diffusion", "midjourney", "dall-e", "chatgpt", "claude", "gemini"],
       "hashtagPrefix": "#AIResearch"
     },
     "industry": {
       "weight": 0.9,
-      "keywords": ["product", "announcement", "release", "update", "company"],
+      "keywords": ["product", "announcement", "release", "update", "company", "launch", "partnership", "investment", "funding", "acquisition", "startup", "scale", "growth", "revenue", "valuation", "series a", "series b", "ipo", "openai", "anthropic", "google", "microsoft", "meta", "apple", "tesla", "xai", "cohere", "hugging face", "stability ai", "replicate", "together ai"],
       "hashtagPrefix": "#AIIndustry"
     },
     "news": {
       "weight": 0.8,
-      "keywords": ["news", "breakthrough", "development", "trend"],
+      "keywords": ["news", "breakthrough", "development", "trend", "milestone", "achievement", "discovery", "innovation", "advancement", "progress", "achievement", "first", "new record", "benchmark", "state-of-the-art", "sota", "leaderboard", "competition", "challenge", "dataset", "benchmark", "evaluation", "metrics", "performance", "accuracy", "efficiency", "speed", "scalability"],
       "hashtagPrefix": "#AINews"
     },
     "community": {
       "weight": 0.6,
-      "keywords": ["tutorial", "guide", "opinion", "discussion"],
+      "keywords": ["tutorial", "guide", "opinion", "discussion", "how-to", "best practices", "tips", "tricks", "interview", "podcast", "webinar", "conference", "meetup", "workshop", "hackathon", "competition", "open source", "github", "colab", "kaggle", "community", "forum", "discord", "reddit", "stackoverflow", "documentation", "examples", "case study", "use case", "implementation", "deployment", "production"],
       "hashtagPrefix": "#AICommunity"
     }
   }
